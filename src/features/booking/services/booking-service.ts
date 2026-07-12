@@ -1,28 +1,66 @@
-import * as mockBooking from '@/mocks/booking/mockService'
+import { authorizeAxios } from '@/shared/lib/api-client'
 
-export type { CreateBookingRequest, BookingResponse, AvailabilitySlotResponse } from '@/mocks/booking/types'
+export interface CreateBookingRequest {
+  vehicleId: string
+  scheduledAt: string
+  serviceType: string
+  notes?: string
+}
 
-// Re-import types for use in this file
-import type { CreateBookingRequest, BookingResponse, AvailabilitySlotResponse } from '@/mocks/booking/types'
+export interface BookingResponse {
+  id: string
+  vehicleId: string
+  licensePlate?: string
+  vehicleDetails?: {
+    licensePlate: string
+    brand?: string
+    color?: string
+    vehicleType?: string
+  }
+  scheduledAt: string
+  serviceType: string
+  notes?: string
+  status: 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'DONE' | 'CANCELLED'
+  branchName?: string
+  amount?: number
+}
+
+export interface AvailabilitySlotResponse {
+  time: string
+  available: boolean
+}
 
 export const bookingService = {
   async getBookings(): Promise<BookingResponse[]> {
-    return mockBooking.getBookings()
+    const { data } = await authorizeAxios.get<any[]>('/bookings')
+    return data.map(b => ({
+      ...b,
+      id: b.bookingId || b.id
+    }))
   },
 
   async createBooking(payload: CreateBookingRequest): Promise<BookingResponse> {
-    return mockBooking.createBooking(payload)
+    const { data } = await authorizeAxios.post<any>('/bookings', payload)
+    return {
+      ...data,
+      id: data.bookingId || data.id
+    }
   },
 
   async getBookingDetail(bookingId: string): Promise<BookingResponse> {
-    return mockBooking.getBookingDetail(bookingId)
+    const { data } = await authorizeAxios.get<BookingResponse>(`/bookings/${bookingId}`)
+    return data
   },
 
   async cancelBooking(bookingId: string): Promise<BookingResponse> {
-    return mockBooking.cancelBooking(bookingId)
+    const { data } = await authorizeAxios.patch<BookingResponse>(`/bookings/${bookingId}/cancel`)
+    return data
   },
 
   async getAvailability(date: string): Promise<AvailabilitySlotResponse[]> {
-    return mockBooking.getAvailability(date)
+    const { data } = await authorizeAxios.get<AvailabilitySlotResponse[]>('/bookings/availability', {
+      params: { date },
+    })
+    return data
   },
 }

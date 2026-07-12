@@ -1,16 +1,29 @@
-import * as mockCustomer from '@/mocks/customer/mockService'
+import { authorizeAxios } from '@/shared/lib/api-client'
 
-export type { CustomerResponse, CustomerUpdateRequest } from '@/mocks/customer/types'
+export interface CustomerResponse {
+  id: string
+  fullName: string
+  name?: string
+  phone: string
+  email: string
+  tier?: string
+  points?: number
+}
 
-// Re-import types for use in this file
-import type { CustomerResponse, CustomerUpdateRequest } from '@/mocks/customer/types'
+export interface CustomerUpdateRequest {
+  fullName: string
+  phone: string
+  email: string
+}
 
 export const customerService = {
   async getCustomer(id: string): Promise<CustomerResponse> {
-    return mockCustomer.getCustomer(id)
+    const { data } = await authorizeAxios.get<CustomerResponse>(`/customers/${id}`)
+    return data
   },
 
   async updateCustomer(id: string, payload: CustomerUpdateRequest): Promise<CustomerResponse> {
-    return mockCustomer.updateCustomer(id, payload)
+    const { data } = await authorizeAxios.put<CustomerResponse>(`/customers/${id}`, payload)
+    return data
   },
 }

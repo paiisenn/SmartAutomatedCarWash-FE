@@ -1,28 +1,46 @@
-import * as mockVehicle from '@/mocks/vehicle/mockService'
+import { authorizeAxios } from '@/shared/lib/api-client'
 
-export type { VehicleRequest, VehicleResponse } from '@/mocks/vehicle/types'
+export interface VehicleRequest {
+  licensePlate: string
+  vehicleType: string
+  brand?: string
+  color?: string
+  primary?: boolean
+}
 
-// Re-import types for use in this file
-import type { VehicleRequest, VehicleResponse } from '@/mocks/vehicle/types'
+export interface VehicleResponse {
+  id: string
+  licensePlate: string
+  vehicleType: string
+  brand?: string
+  color?: string
+  primary: boolean
+  lastWashDate?: string
+  lastWashService?: string
+}
 
 export const vehicleService = {
   async getVehicles(): Promise<VehicleResponse[]> {
-    return mockVehicle.getVehicles()
+    const { data } = await authorizeAxios.get<VehicleResponse[]>('/vehicles')
+    return data
   },
 
   async addVehicle(payload: VehicleRequest): Promise<VehicleResponse> {
-    return mockVehicle.addVehicle(payload)
+    const { data } = await authorizeAxios.post<VehicleResponse>('/vehicles', payload)
+    return data
   },
 
   async updateVehicle(vehicleId: string, payload: VehicleRequest): Promise<VehicleResponse> {
-    return mockVehicle.updateVehicle(vehicleId, payload)
+    const { data } = await authorizeAxios.put<VehicleResponse>(`/vehicles/${vehicleId}`, payload)
+    return data
   },
 
   async setPrimaryVehicle(vehicleId: string): Promise<VehicleResponse> {
-    return mockVehicle.setPrimaryVehicle(vehicleId)
+    const { data } = await authorizeAxios.patch<VehicleResponse>(`/vehicles/${vehicleId}/primary`)
+    return data
   },
 
   async deleteVehicle(vehicleId: string): Promise<void> {
-    return mockVehicle.deleteVehicle(vehicleId)
+    await authorizeAxios.delete(`/vehicles/${vehicleId}`)
   },
 }
