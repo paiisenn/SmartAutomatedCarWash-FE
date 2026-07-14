@@ -8,13 +8,7 @@ import { Button } from '@/shared/components/ui/button'
 import { Card } from '@/shared/components/ui/card' 
 import { cn } from '@/shared/lib/utils'
 import { type Article } from '@/mocks/article/types'
-import { 
-  getAdminArticles, 
-  createArticle, 
-  updateArticle, 
-  deleteArticle, 
-  toggleArticleStatus 
-} from '@/mocks/article/mockService'
+import { adminArticleService } from '@/features/admin/services/admin-article-service'
 
 const filterTabs = ['Tất cả', 'Công khai', 'Bản nháp']
 
@@ -44,7 +38,7 @@ export function AdminArticlesPage() {
       const statusMap = ['ALL', 'PUBLISHED', 'DRAFT']
       const paramStatus = statusMap[activeTab]
       
-      const data = await getAdminArticles(paramStatus, searchQuery)
+      const data = await adminArticleService.getAdminArticles(paramStatus, searchQuery)
       const sortedData = data.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       setArticles(sortedData)
     } catch (error) {
@@ -115,12 +109,12 @@ export function AdminArticlesPage() {
           return
         }
 
-        await updateArticle(targetId, articlePayload)
+        await adminArticleService.updateArticle(targetId, articlePayload)
         toast.success('Cập nhật bài viết thành công! 📝')
         setIsModalOpen(false)
         fetchArticles()
       } else {
-        await createArticle(articlePayload)
+        await adminArticleService.createArticle(articlePayload)
         toast.success('Đăng bài viết mới thành công! 🚀')
         setIsModalOpen(false)
         fetchArticles()
@@ -139,7 +133,7 @@ export function AdminArticlesPage() {
 
     if (window.confirm('Bạn có chắc chắn muốn xóa vĩnh viễn bài viết này không?')) {
       try {
-        await deleteArticle(id)
+        await adminArticleService.deleteArticle(id)
         setArticles((prev) => prev.filter((art) => art.id !== id))
         toast.success('Đã xóa bài viết thành công khỏi Database! 🗑️')
       } catch (error) {
@@ -161,7 +155,7 @@ export function AdminArticlesPage() {
     toast.success(`Chuyển trạng thái sang ${nextStatus === 'PUBLISHED' ? 'Công khai' : 'Bản nháp'}`)
 
     try {
-      await toggleArticleStatus(article.id)
+      await adminArticleService.toggleArticleStatus(article.id)
     } catch (error) {
       console.error(error)
       fetchArticles()

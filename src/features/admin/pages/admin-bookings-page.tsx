@@ -6,7 +6,8 @@ import { Button } from '@/shared/components/ui/button'
 import { AdminSidebar } from '@/features/admin/components/admin-sidebar'
 import { AdminTopbar } from '@/features/admin/components/admin-topbar'
 import { cn } from '@/shared/lib/utils'
-import { getAdminBookings, updateAdminBookingStatus, checkCustomerByPhone, createBooking } from '@/mocks/booking/mockService'
+import { adminBookingService } from '@/features/admin/services/admin-booking-service'
+import { bookingService } from '@/features/booking/services/booking-service'
 
 export interface Booking {
   bookingId: string; customerId: string; customerName: string; customerPhone: string;
@@ -42,7 +43,7 @@ export function AdminBookingsPage() {
   const fetchBookings = async () => {
     setLoading(true)
     try {
-      const data = await getAdminBookings(selectedStatusFilter, dateRangeText)
+      const data = await adminBookingService.getAdminBookings(selectedStatusFilter, dateRangeText)
       setBookings(data)
     } catch (error) {
       console.error('Lỗi khi lấy danh sách lịch hẹn:', error)
@@ -58,7 +59,7 @@ export function AdminBookingsPage() {
 
   const onUpdateBookingStatus = async (id: string, newStatus: Booking['status']) => {
     try {
-      await updateAdminBookingStatus(id, newStatus)
+      await adminBookingService.updateAdminBookingStatus(id, newStatus)
       setBookings(prev => prev.map(b => b.bookingId === id ? { ...b, status: newStatus } : b))
       alert(`Đã cập nhật trạng thái đơn sang ${newStatus} thành công!`)
     } catch (error) {
@@ -73,7 +74,7 @@ export function AdminBookingsPage() {
       return
     }
     try {
-      const data = await checkCustomerByPhone(phoneVal.trim())
+      const data = await adminBookingService.checkCustomerByPhone(phoneVal.trim())
       if (data.exists) {
         setNewCustName(data.fullName)
         setNewCustTier(data.tier)
@@ -102,7 +103,7 @@ export function AdminBookingsPage() {
         activeVehicleId = bookings[0].vehicleId
       }
 
-      await createBooking({
+      await bookingService.createBooking({
         vehicleId: activeVehicleId,   
         serviceType: newService,      
         scheduledAt: formattedDate,   

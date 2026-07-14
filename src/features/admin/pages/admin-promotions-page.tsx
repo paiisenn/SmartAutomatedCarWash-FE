@@ -10,7 +10,7 @@ import { cn } from '@/shared/lib/utils'
 
 const filterTabs = ['Tất cả', 'Đang chạy', 'Hết hạn']
 
-import { getAdminPromotions, togglePromotion } from '@/mocks/promotion/mockService'
+import { adminPromotionService } from '@/features/admin/services/admin-promotion-service'
 
 export function AdminPromotionsPage() {
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -35,7 +35,7 @@ export function AdminPromotionsPage() {
       const statusMap = ['ALL', 'ACTIVE', 'EXPIRED']
       const paramStatus = statusMap[activeTab]
       
-      const data = await getAdminPromotions(paramStatus, searchQuery)
+      const data = await adminPromotionService.getAdminPromotions(paramStatus, searchQuery)
       
       const mappedData = data.map((item: any) => {
         return {
@@ -82,7 +82,7 @@ export function AdminPromotionsPage() {
     )
 
     try {
-      await togglePromotion(id)
+      await adminPromotionService.togglePromotion(id)
     } catch (error) {
       console.error('Lỗi kết nối gạt switch trạng thái:', error)
       alert('Không thể kết nối đến máy chủ Backend. Đang khôi phục giao diện...')

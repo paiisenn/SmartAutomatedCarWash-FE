@@ -12,7 +12,7 @@ import { cn } from '@/shared/lib/utils'
 // Kế thừa icon và các thuộc tính style tĩnh gốc từ dữ liệu mockup của bạn
 import { adminMetrics } from '@/features/admin/data/admin-dashboard'
 
-import { getDashboardStats } from '@/mocks/dashboard/mockService'
+import { dashboardService } from '@/features/admin/services/dashboard-service'
 
 export function AdminDashboardPage() {
   const [loading, setLoading] = useState<boolean>(true)
@@ -24,7 +24,7 @@ export function AdminDashboardPage() {
   const fetchDashboardStats = async (isManualClick = false) => {
     if (isManualClick) setIsRefreshing(true)
     try {
-      const stats = await getDashboardStats()
+      const stats = await dashboardService.getDashboardStats()
       setDashboardStats(stats)
     } catch (error) {
       console.error('Lỗi khi tải số liệu tổng quan Dashboard:', error)

@@ -4,13 +4,7 @@ import {
 } from 'lucide-react';
 import { AdminSidebar } from '@/features/admin/components/admin-sidebar'
 import { AdminTopbar } from '@/features/admin/components/admin-topbar'
-import { 
-  getAdminCustomers, 
-  createAdminCustomer, 
-  updateAdminCustomerStatus, 
-  getCustomerVehicles, 
-  getCustomerHistory 
-} from '@/mocks/customer/mockService'
+import { adminCustomerService } from '@/features/admin/services/admin-customer-service'
 
 interface Vehicle {
   vehicleId: string;
@@ -64,7 +58,7 @@ export function AdminCustomerPage() {
   const fetchCustomers = async () => {
     try {
       if (customers.length === 0) setLoading(true);
-      const data = await getAdminCustomers(searchQuery, activeTierTab);
+      const data = await adminCustomerService.getAdminCustomers(searchQuery, activeTierTab);
       setCustomers(data);
     } catch (err) {
       console.error("Lỗi đồng bộ API khách hàng:", err);
@@ -89,8 +83,8 @@ export function AdminCustomerPage() {
     setLoadingDrawerData(true);
     try {
       const [vData, bData] = await Promise.all([
-        getCustomerVehicles(customerId),
-        getCustomerHistory(customerId)
+        adminCustomerService.getCustomerVehicles(customerId),
+        adminCustomerService.getCustomerHistory(customerId)
       ]);
       
       setCustomerVehicles(vData);
@@ -113,7 +107,7 @@ export function AdminCustomerPage() {
       return;
     }
     try {
-      await createAdminCustomer(formData);
+      await adminCustomerService.createAdminCustomer(formData);
       alert('Thêm khách hàng mới tại quầy thành công! 🎉');
       setIsAddModalOpen(false);
       setFormData({ fullName: '', phone: '', email: '', password: 'password123' });
@@ -130,7 +124,7 @@ export function AdminCustomerPage() {
     if (!confirmClose) return;
 
     try {
-      await updateAdminCustomerStatus(customerId, !currentStatus);
+      await adminCustomerService.updateAdminCustomerStatus(customerId, !currentStatus);
       alert(`Đã ${actionText.toLowerCase()} tài khoản thành công!`);
       setSelectedCustomerId(null); // Đóng Drawer
       fetchCustomers(); // Làm mới dữ liệu real-time

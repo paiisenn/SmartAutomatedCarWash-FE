@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 
-import { sendPromotionNotification, createAdminPromotion } from '@/mocks/promotion/mockService'
+import { adminPromotionService } from '@/features/admin/services/admin-promotion-service'
 
 type ConfirmSendModalProps = {
   onClose: () => void
@@ -22,7 +22,7 @@ export function ConfirmSendModal({ onClose, promotion }: ConfirmSendModalProps) 
   const handleSendPromotion = async () => {
     setSending(true)
     try {
-      await sendPromotionNotification(promotion.id)
+      await adminPromotionService.sendPromotionNotification(promotion.id)
       alert(`Đã kích hoạt gửi chiến dịch "${promotion.name}" thành công tới hệ thống! ✈️`)
       onClose()
     } catch (error) {
@@ -133,7 +133,7 @@ export function CreatePromotionDrawer({ onClose, open, onSuccess }: CreatePromot
         endsAt: formData.endsAt ? formData.endsAt : null
       }
 
-      await createAdminPromotion(requestBody)
+      await adminPromotionService.createAdminPromotion(requestBody)
       alert('Tạo chiến dịch khuyến mãi thành công! 🎉')
       
       // Reset form sạch sẽ về trạng thái rỗng ban đầu
