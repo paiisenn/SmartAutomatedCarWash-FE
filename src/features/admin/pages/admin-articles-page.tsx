@@ -7,7 +7,7 @@ import { AdminTopbar } from '@/features/admin/components/admin-topbar'
 import { Button } from '@/shared/components/ui/button'
 import { Card } from '@/shared/components/ui/card' 
 import { cn } from '@/shared/lib/utils'
-import { type Article } from '@/mocks/article/types'
+import { type Article } from '@/features/articles/data/mock-articles'
 import { adminArticleService } from '@/features/admin/services/admin-article-service'
 
 const filterTabs = ['Tất cả', 'Công khai', 'Bản nháp']

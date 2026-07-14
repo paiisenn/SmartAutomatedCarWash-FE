@@ -6,8 +6,7 @@ import { ClientTopbar } from '@/features/client/components/client-topbar'
 import { Card as UICard, CardContent } from '@/shared/components/ui/card'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
-import { type Article } from '@/mocks/article/types'
-import { mockArticles } from '@/mocks/article/mockData'
+import { type Article, mockArticles } from '@/features/articles/data/mock-articles'
 
 export function ClientArticlesPage() {
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null)
