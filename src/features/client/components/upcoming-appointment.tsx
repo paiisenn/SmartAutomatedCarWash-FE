@@ -31,7 +31,7 @@ export function UpcomingAppointment() {
   }
 
   return (
-    <section className="col-span-12">
+    <section className="col-span-12" data-tour="upcoming-appointment">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="text-xl font-medium leading-7 text-on-surface">Lịch hẹn sắp tới</h3>
         <Link className="text-sm font-medium leading-4 text-primary hover:underline" to={routes.history}>
@@ -57,7 +57,9 @@ export function UpcomingAppointment() {
                   {latestBooking.vehicleDetails?.licensePlate || latestBooking.licensePlate || 'Chưa rõ xe'}
                 </p>
                 <p className="text-base leading-6 text-on-surface-variant">
-                  {latestBooking.serviceType} {latestBooking.notes ? `• ${latestBooking.notes}` : ''}
+                  {((latestBooking as any).selectedServices && (latestBooking as any).selectedServices.length > 0
+                    ? (latestBooking as any).selectedServices.map((s: any) => s.name || s.serviceName).join(', ')
+                    : (latestBooking.serviceType || 'Chưa chọn'))} {latestBooking.notes ? `• ${latestBooking.notes}` : ''}
                 </p>
               </div>
             </div>
@@ -89,7 +91,7 @@ export function UpcomingAppointment() {
               <p className="text-base font-medium text-on-surface">Bạn chưa có lịch hẹn sắp tới</p>
               <p className="text-sm text-on-surface-variant">Đăng ký lịch rửa xe để nhận dịch vụ chăm sóc tốt nhất</p>
             </div>
-            <Link to={routes.booking} className="rounded-lg bg-primary px-6 py-2 text-sm font-medium text-on-primary transition-shadow hover:shadow-md">
+            <Link to={routes.booking} className="rounded-lg bg-primary px-6 py-2 text-sm font-medium text-white transition-shadow hover:shadow-md">
               Đặt lịch ngay
             </Link>
           </CardContent>

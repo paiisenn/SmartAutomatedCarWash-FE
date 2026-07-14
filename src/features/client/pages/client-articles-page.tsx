@@ -1,30 +1,47 @@
-import { useState, useMemo } from 'react'
-import { BookOpen, Calendar, User, Search, X } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { BookOpen, Calendar, User, Search, X, Loader2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'motion/react'
 import { ClientSidebar } from '@/features/client/components/client-sidebar'
 import { ClientTopbar } from '@/features/client/components/client-topbar'
 import { Card as UICard, CardContent } from '@/shared/components/ui/card'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
-import { type Article, mockArticles } from '@/features/articles/data/mock-articles'
+import { articleService, type Article } from '@/features/client/services/article-service'
 
 export function ClientArticlesPage() {
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState<'ALL' | 'VEHICLE' | 'SERVICE'>('ALL')
+  const [articles, setArticles] = useState<Article[]>([])
+  const [loading, setLoading] = useState(true)
 
-  // Filter articles based on search query and category
-  const filteredArticles = useMemo(() => {
-    return mockArticles.filter((article) => {
-      const matchesSearch =
-        article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        article.summary.toLowerCase().includes(searchQuery.toLowerCase())
-      
-      const matchesCategory =
-        activeTab === 'ALL' || article.category === activeTab
-      
-      return matchesSearch && matchesCategory && article.status === 'PUBLISHED'
-    })
+  // Fetch articles from backend API
+  useEffect(() => {
+    let active = true
+    const delayDebounceFn = setTimeout(async () => {
+      setLoading(true)
+      try {
+        const data = await articleService.getClientArticles(
+          activeTab === 'ALL' ? undefined : activeTab,
+          searchQuery.trim() || undefined
+        )
+        if (active) {
+          const sorted = data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          setArticles(sorted)
+        }
+      } catch (error) {
+        console.error('Lỗi khi nạp cẩm nang từ server:', error)
+      } finally {
+        if (active) {
+          setLoading(false)
+        }
+      }
+    }, 300)
+
+    return () => {
+      active = false
+      clearTimeout(delayDebounceFn)
+    }
   }, [searchQuery, activeTab])
 
   const formatDate = (dateString: string) => {
@@ -80,14 +97,19 @@ export function ClientArticlesPage() {
           </div>
 
           {/* Articles Grid */}
-          {filteredArticles.length === 0 ? (
+          {loading ? (
+            <div className="py-20 text-center">
+              <Loader2 className="mx-auto size-10 animate-spin text-primary mb-3" />
+              <p className="text-base text-outline">Đang đồng bộ cẩm nang từ server...</p>
+            </div>
+          ) : articles.length === 0 ? (
             <div className="py-12 text-center">
               <BookOpen className="mx-auto size-12 text-outline mb-3 opacity-60" />
               <p className="text-base text-outline">Không tìm thấy bài viết nào phù hợp.</p>
             </div>
           ) : (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredArticles.map((article) => (
+              {articles.map((article) => (
                 <UICard
                   key={article.id}
                   className="group overflow-hidden rounded-xl border border-outline-variant bg-surface transition-all duration-300 hover:shadow-lg hover:border-primary/30 flex flex-col h-full cursor-pointer"

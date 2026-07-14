@@ -61,10 +61,16 @@ function ToggleSwitch({ isActiveInitial, promotionId, onToggleStatus }: { isActi
 
 export function PromotionTable({ onSendPromotion, promotions, onToggleStatus }: PromotionTableProps) {
   
-  const formatValue = (type: string, value: any) => {
-    if (type === 'FREE_WASH') return 'Rửa xe Miễn phí'
-    const numValue = Number(value) || 0
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(numValue)
+  const formatValue = (promo: any) => {
+    if (promo.type === 'FREE_WASH') return 'Rửa xe Miễn phí'
+    const numValue = Number(promo.value) || 0
+    if (numValue < 100) {
+      const maxText = promo.maxDiscount 
+        ? ` (Tối đa ${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(promo.maxDiscount)})`
+        : ''
+      return `${numValue}%${maxText}`
+    }
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(numValue)
   }
 
   return (
@@ -135,7 +141,7 @@ export function PromotionTable({ onSendPromotion, promotions, onToggleStatus }: 
 
                     {/* 4. Giá trị tiền tệ */}
                     <td className="px-4 py-4 text-sm font-medium leading-4 text-on-surface">
-                      {formatValue(promotion.type, promotion.value)}
+                      {formatValue(promotion)}
                     </td>
 
                     {/* 5. Cấu trúc thời hạn đẹp mắt */}

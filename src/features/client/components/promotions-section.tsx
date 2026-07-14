@@ -6,7 +6,7 @@ import { cn } from '@/shared/lib/utils'
 
 export function PromotionsSection() {
   return (
-    <section className="col-span-12">
+    <section className="col-span-12" data-tour="promotions-section">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="text-xl font-medium leading-7 text-on-surface">Ưu đãi dành cho bạn</h3>
         <div className="flex gap-2">

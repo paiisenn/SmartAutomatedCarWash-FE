@@ -8,11 +8,10 @@ import { RevenueChart } from '@/features/admin/components/revenue-chart'
 import { Button } from '@/shared/components/ui/button'
 import { Card } from '@/shared/components/ui/card'
 import { cn } from '@/shared/lib/utils'
+import { authorizeAxios } from '@/shared/lib/api-client'
 
 // Kế thừa icon và các thuộc tính style tĩnh gốc từ dữ liệu mockup của bạn
 import { adminMetrics } from '@/features/admin/data/admin-dashboard'
-
-import { dashboardService } from '@/features/admin/services/dashboard-service'
 
 export function AdminDashboardPage() {
   const [loading, setLoading] = useState<boolean>(true)
@@ -24,8 +23,8 @@ export function AdminDashboardPage() {
   const fetchDashboardStats = async (isManualClick = false) => {
     if (isManualClick) setIsRefreshing(true)
     try {
-      const stats = await dashboardService.getDashboardStats()
-      setDashboardStats(stats)
+      const res = await authorizeAxios.get('/admin/dashboard/stats')
+      setDashboardStats(res.data)
     } catch (error) {
       console.error('Lỗi khi tải số liệu tổng quan Dashboard:', error)
     } finally {
@@ -72,7 +71,7 @@ export function AdminDashboardPage() {
     {
       ...adminMetrics[3],
       label: "Điểm hệ thống phát", // Đồng bộ Loyalty[cite: 1]
-      value: `${(dashboardStats?.issuedPoints || 0).toLocaleString()} pts`,
+      value: `${(dashboardStats?.issuedPoints || 0).toLocaleString()} điểm`,
     },
   ] : []
 

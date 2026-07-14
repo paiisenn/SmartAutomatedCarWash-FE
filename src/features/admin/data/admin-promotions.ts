@@ -33,7 +33,7 @@ export const adminPromotions: AdminPromotion[] = [
     name: 'Tặng 50 điểm hội viên',
     type: 'BONUS_POINTS',
     targetTiers: ['SILVER', 'MEMBER'],
-    value: '50 Pts',
+    value: '50 điểm',
     dateRange: '15/01 - 15/02',
     usage: { current: 120, total: 500, percent: 24 },
     status: 'active',

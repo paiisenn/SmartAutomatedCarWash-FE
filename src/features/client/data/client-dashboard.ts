@@ -58,11 +58,11 @@ export const dashboardLogoutItem = {
   label: 'Đăng xuất',
 }
 
-export const quickActions: QuickAction[] = [
-  { icon: CalendarPlus, label: 'Đặt lịch' },
-  { icon: Award, label: 'Điểm thưởng' },
-  { icon: ClipboardList, label: 'Lịch sử' },
-  { icon: CarFront, label: 'Xe của tôi' },
+export const quickActions = [
+  { icon: CalendarPlus, label: 'Đặt lịch', path: routes.booking },
+  { icon: Award, label: 'Điểm thưởng', path: routes.loyalty },
+  { icon: ClipboardList, label: 'Lịch sử', path: routes.history },
+  { icon: CarFront, label: 'Xe của tôi', path: routes.vehicles },
 ]
 
 export const promotions: Promotion[] = [

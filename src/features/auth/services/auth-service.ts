@@ -17,23 +17,20 @@ export interface AuthResponse {
   accessToken?: string
   jwt?: string
   refreshToken?: string
+  role?: string
+  fullName?: string
+  phone?: string
+  email?: string
+  id?: string
+  tier?: string
   user?: {
     id?: string
     name?: string
+    fullName?: string
     email?: string
     phone?: string
     role?: string
   }
-}
-
-export interface UserProfile {
-  id?: string
-  customerId?: string
-  name?: string
-  fullName?: string
-  email?: string
-  phone?: string
-  role?: string
 }
 
 export const authService = {

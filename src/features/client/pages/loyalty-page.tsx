@@ -19,12 +19,20 @@ import { ClientTopbar } from '@/features/client/components/client-topbar'
 export function LoyaltyPage() {
   const dispatch = useDispatch<AppDispatch>()
   const user = useSelector((state: RootState) => state.auth.user)
-  const { balance, tier, nextTierPoints, isLoading } = useSelector((state: RootState) => state.client.loyalty)
+  const {
+    balance,
+    tier,
+    totalVisits,
+    remainingVisits,
+    silverThreshold,
+    goldThreshold,
+    platinumThreshold,
+    isLoading
+  } = useSelector((state: RootState) => state.client.loyalty)
 
   const [history, setHistory] = useState<PointHistoryResponse[]>([])
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
   const [filterType, setFilterType] = useState<'all' | 'earn' | 'redeem' | 'expire'>('all')
-  const [claimedReward, setClaimedReward] = useState<string | null>(null)
 
   const loadPointHistory = useCallback(async () => {
     if (!user?.id) return
@@ -46,12 +54,13 @@ export function LoyaltyPage() {
     }
   }, [loadPointHistory, user?.id, dispatch])
 
-  // Filter history based on transactionType
+  // Filter history based on type
   const filteredHistory = useMemo(() => {
     return history.filter((item) => {
+      const type = item.type || item.transactionType
       if (filterType === 'all') return true
-      if (filterType === 'earn') return item.transactionType === 'EARN'
-      if (filterType === 'redeem') return item.transactionType === 'REDEEM'
+      if (filterType === 'earn') return type === 'EARN'
+      if (filterType === 'redeem') return type === 'REDEEM'
       return false // 'expire' is mock or not in API
     })
   }, [history, filterType])
@@ -72,70 +81,40 @@ export function LoyaltyPage() {
     }
   }
 
-  // Tier calculation logic
-  let currentTierThreshold = 1000
-  let nextTierThreshold = 2500
+  // Tier calculation logic based on visits from system config
+  const sThresh = silverThreshold !== undefined ? silverThreshold : 10
+  const gThresh = goldThreshold !== undefined ? goldThreshold : 25
+  const pThresh = platinumThreshold !== undefined ? platinumThreshold : 50
+
+  let currentTierThreshold = gThresh
+  let nextTierThreshold = pThresh
   let nextTierName = 'Platinum'
   const tierLower = (tier || 'Regular').toLowerCase()
 
   if (tierLower === 'regular' || tierLower === 'member') {
     currentTierThreshold = 0
-    nextTierThreshold = 500
+    nextTierThreshold = sThresh
     nextTierName = 'Silver'
   } else if (tierLower === 'silver') {
-    currentTierThreshold = 500
-    nextTierThreshold = 1000
+    currentTierThreshold = sThresh
+    nextTierThreshold = gThresh
     nextTierName = 'Gold'
   } else if (tierLower === 'gold') {
-    currentTierThreshold = 1000
-    nextTierThreshold = 2500
+    currentTierThreshold = gThresh
+    nextTierThreshold = pThresh
     nextTierName = 'Platinum'
   } else {
     nextTierName = ''
   }
 
-  const remainingPoints = nextTierPoints > 0 ? nextTierPoints : Math.max(0, nextTierThreshold - balance)
+  const remainingVisitsCount = remainingVisits !== undefined ? remainingVisits : Math.max(0, nextTierThreshold - totalVisits)
   const range = nextTierThreshold - currentTierThreshold
-  const currentProgressInTier = balance - currentTierThreshold
+  const currentProgressInTier = totalVisits - currentTierThreshold
   const progressPercent = nextTierName
     ? Math.min(100, Math.max(0, (currentProgressInTier / range) * 100))
     : 100
 
-  const handleClaimGift = async () => {
-    if (!user?.id) {
-      toast.error('Vui lòng đăng nhập để thực hiện')
-      return
-    }
 
-    if (balance < 500) {
-      toast.error('Bạn cần tối thiểu 500 điểm để đổi voucher này')
-      return
-    }
-
-    try {
-      const referenceId = '00000000-0000-0000-0000-' + Math.floor(100000000000 + Math.random() * 900000000000)
-      await loyaltyService.redeemPoints({
-        customerId: user.id,
-        redeemType: 'VOUCHER_20',
-        referenceId
-      })
-      
-      toast.success('Đổi voucher thành công!')
-      setClaimedReward(
-        'Cảm ơn bạn! Yêu cầu đổi voucher ưu đãi giảm 20% đã được gửi thành công. Hệ thống đã trừ điểm tích lũy của bạn.'
-      )
-      
-      // Refresh points and history
-      dispatch(fetchLoyaltyBalance(user.id))
-      loadPointHistory()
-      
-      setTimeout(() => {
-        setClaimedReward(null)
-      }, 5000)
-    } catch {
-      toast.error('Đổi quà thất bại. Vui lòng kiểm tra lại điểm tích lũy.')
-    }
-  }
 
   return (
     <div className="min-h-screen bg-background text-on-surface">
@@ -144,22 +123,6 @@ export function LoyaltyPage() {
 
       <main className="min-h-screen px-6 pb-8 pt-24 lg:pl-[calc(16rem+24px)]">
         <div className="mx-auto max-w-[1280px] space-y-6">
-          {/* Toast Reward Claim feedback */}
-          {claimedReward && (
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className='fixed top-20 right-6 z-50 max-w-sm p-4 bg-indigo-50 border border-indigo-150 rounded-xl shadow-lg shadow-indigo-100 text-indigo-700 text-sm flex items-start gap-2.5'
-            >
-              <Gift className='w-5 h-5 shrink-0 mt-0.5' />
-              <div>
-                <p className='font-medium'>Thông báo đổi quà</p>
-                <p className='text-xs opacity-90 mt-1'>{claimedReward}</p>
-              </div>
-            </motion.div>
-          )}
-
           {/* Hero Section - Tier Status Card */}
           <motion.section
             initial={{ opacity: 0, y: 15 }}
@@ -176,10 +139,10 @@ export function LoyaltyPage() {
               </div>
               <div>
                 <p className='text-3xl font-bold tracking-tight text-slate-900'>
-                  {isLoading ? '...' : `${new Intl.NumberFormat('vi-VN').format(balance)} pts`}
+                  {isLoading ? '...' : `${new Intl.NumberFormat('vi-VN').format(balance)} điểm`}
                 </p>
-                <p className='text-xs font-medium text-slate-450 uppercase tracking-widest mt-0.5'>
-                  Tài khoản hạng {tier}
+                <p className='text-xs font-medium text-slate-400 uppercase tracking-widest mt-0.5'>
+                  Hạng {tier} • {totalVisits} lượt rửa xe
                 </p>
               </div>
             </div>
@@ -201,7 +164,7 @@ export function LoyaltyPage() {
                   />
                 </div>
                 <p className='mt-2 text-[11px] text-slate-500 text-right font-medium'>
-                  Còn <span className='font-bold text-slate-800'>{remainingPoints} điểm</span> để thăng hạng
+                  Còn <span className='font-bold text-slate-800'>{remainingVisitsCount} lượt rửa xe</span> để thăng hạng
                 </p>
               </div>
             )}
@@ -216,11 +179,11 @@ export function LoyaltyPage() {
                 ? 'border-2 border-amber-450 ring-4 ring-amber-100 shadow-md'
                 : 'border-slate-200 opacity-50 hover:opacity-75'
             )}>
-              <div className='bg-slate-50 text-slate-505 px-3 py-1 rounded-md text-xs font-bold border border-slate-200'>
+              <div className='bg-slate-50 text-slate-500 px-3 py-1 rounded-md text-xs font-bold border border-slate-200'>
                 MEMBER
               </div>
               <span className='text-[10px] text-slate-400 font-bold tracking-tight'>
-                0 - 499 pts
+                &lt; {sThresh} lượt rửa
               </span>
               {(tierLower === 'regular' || tierLower === 'member') && (
                 <div className='absolute -top-2.5 right-2 bg-amber-400 text-amber-900 text-[8px] px-2 py-0.5 rounded-full font-bold tracking-wider shadow-sm'>
@@ -240,7 +203,7 @@ export function LoyaltyPage() {
                 SILVER
               </div>
               <span className='text-[10px] text-slate-400 font-bold tracking-tight'>
-                500 - 999 pts
+                {sThresh} - {gThresh - 1} lượt rửa
               </span>
               {tierLower === 'silver' && (
                 <div className='absolute -top-2.5 right-2 bg-amber-400 text-amber-900 text-[8px] px-2 py-0.5 rounded-full font-bold tracking-wider shadow-sm'>
@@ -259,8 +222,8 @@ export function LoyaltyPage() {
               <div className='bg-amber-50 text-amber-800 px-3 py-1 rounded-md text-xs font-bold border border-amber-200'>
                 GOLD
               </div>
-              <span className='text-[10px] text-amber-800 font-bold tracking-tight'>
-                1,000 - 2,499 pts
+              <span className='text-[10px] text-amber-850 font-bold tracking-tight'>
+                {gThresh} - {pThresh - 1} lượt rửa
               </span>
               {tierLower === 'gold' && (
                 <div className='absolute -top-2.5 right-2 bg-amber-400 text-amber-900 text-[8px] px-2 py-0.5 rounded-full font-bold tracking-wider shadow-sm'>
@@ -280,7 +243,7 @@ export function LoyaltyPage() {
                 PLATINUM
               </div>
               <span className='text-[10px] text-slate-400 font-bold tracking-tight'>
-                2,500+ pts
+                {pThresh}+ lượt rửa
               </span>
               {tierLower === 'platinum' && (
                 <div className='absolute -top-2.5 right-2 bg-amber-400 text-amber-900 text-[8px] px-2 py-0.5 rounded-full font-bold tracking-wider shadow-sm'>
@@ -304,6 +267,36 @@ export function LoyaltyPage() {
               </p>
             </motion.div>
           )}
+
+
+
+          {/* Card: Quyền lợi Platinum */}
+          <div className='bg-white rounded-2xl p-6 border border-slate-200 flex flex-col justify-center shadow-xs'>
+            <div className='flex gap-4 items-start'>
+              <div className='p-3 bg-indigo-50 rounded-xl text-indigo-700 shrink-0 border border-indigo-100 flex items-center justify-center'>
+                <Award className='w-6 h-6 border-none' />
+              </div>
+              <div>
+                <h3 className='text-sm font-bold text-slate-800 tracking-tight'>
+                  Quyền lợi Platinum đang chờ bạn
+                </h3>
+                <p className='text-xs text-slate-505 font-medium leading-relaxed mt-2'>
+                  Trở thành hội viên Platinum để hưởng các đặc quyền đẳng cấp nhất:
+                </p>
+                <ul className='mt-3 space-y-1.5 text-xs text-slate-600 font-medium'>
+                  <li className='flex items-center gap-1.5'>
+                    <Check className='w-3.5 h-3.5 text-emerald-500' /> Ưu tiên dịch vụ trước không cần chờ đợi.
+                  </li>
+                  <li className='flex items-center gap-1.5'>
+                    <Check className='w-3.5 h-3.5 text-emerald-500' /> Giảm trực tiếp 10% trên toàn bộ hóa đơn.
+                  </li>
+                  <li className='flex items-center gap-1.5'>
+                    <Check className='w-3.5 h-3.5 text-emerald-500' /> Trải nghiệm khu vực phòng chờ hạng VIP cao cấp.
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
 
           {/* Main Points History section */}
           <section className='bg-white rounded-2xl border border-slate-200 p-6 shadow-xs'>
@@ -363,7 +356,7 @@ export function LoyaltyPage() {
                 </div>
               ) : filteredHistory.length > 0 ? (
                 filteredHistory.map((item, index) => {
-                  const isEarn = item.transactionType === 'EARN'
+                  const isEarn = (item.type || item.transactionType) === 'EARN'
                   return (
                     <motion.div
                       key={item.id}
@@ -414,62 +407,6 @@ export function LoyaltyPage() {
                   Không có giao dịch điểm thưởng nào phù hợp.
                 </div>
               )}
-            </div>
-          </section>
-
-          {/* Promotional Panel Grid */}
-          <section className='grid grid-cols-1 md:grid-cols-2 gap-6'>
-            {/* Banner: Đổi quà ngay */}
-            <div className='relative rounded-2xl overflow-hidden min-h-[160px] flex items-center p-6 border border-slate-200 group shadow-xs bg-slate-900'>
-              <img
-                className='absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-40 select-none'
-                src='https://images.unsplash.com/photo-1542282088-72c9c27ed0cd?auto=format&fit=crop&q=80&w=1024'
-                alt='Mercedes-Benz Detailing Garage'
-                referrerPolicy='no-referrer'
-              />
-              <div className='absolute inset-0 bg-gradient-to-r from-slate-950/90 to-transparent' />
-              <div className='relative z-10 text-white max-w-[260px]'>
-                <h3 className='text-sm font-bold text-white mb-1.5 tracking-tight uppercase'>
-                  Đổi quà ngay
-                </h3>
-                <p className='text-xs text-slate-200 font-medium leading-relaxed mb-4'>
-                  Sử dụng điểm tích lũy để nhận ngay các dịch vụ dọn xe hoặc mã ưu đãi đặc quyền hoàn toàn miễn phí.
-                </p>
-                <button
-                  onClick={handleClaimGift}
-                  className='flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2 px-4 rounded-lg transition-colors shadow-lg shadow-indigo-650/25 cursor-pointer'
-                >
-                  Đổi voucher 20% (500 pts) <Gift className='w-3.5 h-3.5' />
-                </button>
-              </div>
-            </div>
-
-            {/* Card: Quyền lợi Platinum */}
-            <div className='bg-white rounded-2xl p-6 border border-slate-200 flex flex-col justify-center shadow-xs'>
-              <div className='flex gap-4 items-start'>
-                <div className='p-3 bg-indigo-50 rounded-xl text-indigo-700 shrink-0 border border-indigo-100 flex items-center justify-center'>
-                  <Award className='w-6 h-6 border-none' />
-                </div>
-                <div>
-                  <h3 className='text-sm font-bold text-slate-800 tracking-tight'>
-                    Quyền lợi Platinum đang chờ bạn
-                  </h3>
-                  <p className='text-xs text-slate-505 font-medium leading-relaxed mt-2'>
-                    Trở thành hội viên Platinum để hưởng các đặc quyền đẳng cấp nhất:
-                  </p>
-                  <ul className='mt-3 space-y-1.5 text-xs text-slate-600 font-medium'>
-                    <li className='flex items-center gap-1.5'>
-                      <Check className='w-3.5 h-3.5 text-emerald-500' /> Ưu tiên dịch vụ trước không cần chờ đợi.
-                    </li>
-                    <li className='flex items-center gap-1.5'>
-                      <Check className='w-3.5 h-3.5 text-emerald-500' /> Giảm trực tiếp 10% trên toàn bộ hóa đơn.
-                    </li>
-                    <li className='flex items-center gap-1.5'>
-                      <Check className='w-3.5 h-3.5 text-emerald-500' /> Trải nghiệm khu vực phòng chờ hạng VIP cao cấp.
-                    </li>
-                  </ul>
-                </div>
-              </div>
             </div>
           </section>
         </div>

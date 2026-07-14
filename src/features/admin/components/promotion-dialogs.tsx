@@ -4,8 +4,6 @@ import { motion, AnimatePresence } from 'motion/react'
 import { Button } from '@/shared/components/ui/button'
 import { Input } from '@/shared/components/ui/input'
 
-import { adminPromotionService } from '@/features/admin/services/admin-promotion-service'
-
 type ConfirmSendModalProps = {
   onClose: () => void
   promotion: any | null // Đồng bộ kiểu any linh hoạt giống trang quản lý ngoài
@@ -22,9 +20,24 @@ export function ConfirmSendModal({ onClose, promotion }: ConfirmSendModalProps) 
   const handleSendPromotion = async () => {
     setSending(true)
     try {
-      await adminPromotionService.sendPromotionNotification(promotion.id)
-      alert(`Đã kích hoạt gửi chiến dịch "${promotion.name}" thành công tới hệ thống! ✈️`)
-      onClose()
+      // Lấy chính xác accessToken đồng bộ với cơ chế xác thực hệ thống của Khang
+      const token = localStorage.getItem('jwt_token')
+
+      const res = await fetch(`http://localhost:8080/api/admin/promotions/${promotion.id}/send`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : ''
+        }
+      })
+
+      if (res.ok) {
+        alert(`Đã kích hoạt gửi chiến dịch "${promotion.name}" thành công tới hệ thống! ✈️`)
+        onClose()
+      } else {
+        const errText = await res.text()
+        alert(`Lỗi khi yêu cầu gửi ưu đãi: ${errText}`)
+      }
     } catch (error) {
       console.error('Lỗi kết nối API gửi khuyến mãi:', error)
       alert('Không thể kết nối đến máy chủ Backend.')
@@ -91,6 +104,7 @@ export function CreatePromotionDrawer({ onClose, open, onSuccess }: CreatePromot
     name: '',
     promoType: 'DISCOUNT',
     value: '',
+    maxDiscount: '',
     usageLimit: '',
     targetTiers: [] as string[],
     startsAt: '',
@@ -122,33 +136,50 @@ export function CreatePromotionDrawer({ onClose, open, onSuccess }: CreatePromot
 
     setSubmitting(true)
     try {
-      // Đóng gói request chuẩn định dạng Java nhận diện
+      const token = localStorage.getItem('jwt_token')
+
+      // Đóng gói request chuẩn định dạng Java nhận diện yyyy-MM-dd'T'HH:mm
       const requestBody = {
         name: formData.name,
         promoType: formData.promoType,
         value: Number(formData.value),
+        maxDiscount: formData.maxDiscount ? Number(formData.maxDiscount) : null,
         usageLimit: Number(formData.usageLimit),
         targetTiers: formData.targetTiers.length > 0 ? formData.targetTiers.join(',') : 'MEMBER',
-        startsAt: formData.startsAt ? formData.startsAt : null,
-        endsAt: formData.endsAt ? formData.endsAt : null
+        startsAt: formData.startsAt ? `${formData.startsAt}T00:00` : null,
+        endsAt: formData.endsAt ? `${formData.endsAt}T23:59` : null
       }
 
-      await adminPromotionService.createAdminPromotion(requestBody)
-      alert('Tạo chiến dịch khuyến mãi thành công! 🎉')
-      
-      // Reset form sạch sẽ về trạng thái rỗng ban đầu
-      setFormData({
-        name: '',
-        promoType: 'DISCOUNT',
-        value: '',
-        usageLimit: '',
-        targetTiers: [],
-        startsAt: '',
-        endsAt: ''
+      const res = await fetch('http://localhost:8080/api/admin/promotions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : ''
+        },
+        body: JSON.stringify(requestBody)
       })
 
-      onClose() // Đóng khay điền form
-      if (onSuccess) onSuccess() // Ép bảng ngoài màn hình tự động tải lại data động mới tinh!
+      if (res.ok) {
+        alert('Tạo chiến dịch khuyến mãi thành công! 🎉')
+        
+        // Reset form sạch sẽ về trạng thái rỗng ban đầu
+        setFormData({
+          name: '',
+          promoType: 'DISCOUNT',
+          value: '',
+          maxDiscount: '',
+          usageLimit: '',
+          targetTiers: [],
+          startsAt: '',
+          endsAt: ''
+        })
+
+        onClose() // Đóng khay điền form
+        if (onSuccess) onSuccess() // Ép bảng ngoài màn hình tự động tải lại data động mới tinh!
+      } else {
+        const errText = await res.text()
+        alert(`Lỗi hệ thống: ${errText}`)
+      }
     } catch (error) {
       console.error(error)
       alert('Không thể kết nối đến server Backend.')
@@ -202,21 +233,7 @@ export function CreatePromotionDrawer({ onClose, open, onSuccess }: CreatePromot
                   />
                 </label>
 
-                {/* Ô CHỌN LOẠI */}
-                <label className="grid gap-3 text-sm font-medium leading-4 text-on-surface">
-                  Loại khuyến mãi
-                  <div className="relative">
-                    <select 
-                      className="h-12 w-full appearance-none rounded-lg border border-outline-variant bg-surface px-4 text-base outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
-                      value={formData.promoType}
-                      onChange={e => setFormData(p => ({ ...p, promoType: e.target.value }))}
-                    >
-                      <option value="DISCOUNT">DISCOUNT (Giảm số tiền)</option>
-                      <option value="FREE_WASH">FREE_WASH (Rửa xe miễn phí)</option>
-                    </select>
-                    <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-on-surface-variant" />
-                  </div>
-                </label>
+
 
                 {/* Ô GIÁ TRỊ VÀ GIỚI HẠN */}
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -230,7 +247,7 @@ export function CreatePromotionDrawer({ onClose, open, onSuccess }: CreatePromot
                         value={formData.value}
                         onChange={e => setFormData(p => ({ ...p, value: e.target.value }))}
                       />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-on-surface-variant">đ</span>
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-on-surface-variant">đ / %</span>
                     </div>
                   </label>
                   <label className="grid gap-3 text-sm font-medium leading-4 text-on-surface">
@@ -243,6 +260,21 @@ export function CreatePromotionDrawer({ onClose, open, onSuccess }: CreatePromot
                     />
                   </label>
                 </div>
+
+                {formData.value && Number(formData.value) <= 100 && (
+                  <label className="grid gap-3 text-sm font-medium leading-4 text-on-surface">
+                    Giảm tối đa (để trống nếu không giới hạn)
+                    <div className="relative">
+                      <Input 
+                        placeholder="50000" 
+                        type="number" 
+                        value={formData.maxDiscount}
+                        onChange={e => setFormData(p => ({ ...p, maxDiscount: e.target.value }))}
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-on-surface-variant">đ</span>
+                    </div>
+                  </label>
+                )}
 
                 {/* Ô CHỌN ĐỐI TƯỢNG HẠNG THÀNH VIÊN */}
                 <div className="grid gap-3">
@@ -267,7 +299,7 @@ export function CreatePromotionDrawer({ onClose, open, onSuccess }: CreatePromot
                   <label className="grid gap-3 text-sm font-medium leading-4 text-on-surface">
                     Ngày bắt đầu
                     <Input 
-                      type="datetime-local" 
+                      type="date" 
                       value={formData.startsAt}
                       onChange={e => setFormData(p => ({ ...p, startsAt: e.target.value }))}
                     />
@@ -275,7 +307,7 @@ export function CreatePromotionDrawer({ onClose, open, onSuccess }: CreatePromot
                   <label className="grid gap-3 text-sm font-medium leading-4 text-on-surface">
                     Ngày kết thúc
                     <Input 
-                      type="datetime-local" 
+                      type="date" 
                       value={formData.endsAt}
                       onChange={e => setFormData(p => ({ ...p, endsAt: e.target.value }))}
                     />

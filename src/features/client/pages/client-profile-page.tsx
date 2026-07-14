@@ -1,17 +1,19 @@
-import { useState, useEffect, useMemo, type ReactNode } from 'react'
+import { useState, useEffect, useMemo, type ReactNode, type FormEvent } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { Camera, Edit, LogOut, Phone } from 'lucide-react'
+import { Camera, Edit, LogOut, Phone, Eye, EyeOff, CheckCircle, AlertCircle, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { AnimatePresence, motion } from 'motion/react'
 import { ClientSidebar } from '@/features/client/components/client-sidebar'
 import { ClientTopbar } from '@/features/client/components/client-topbar'
 import { Button } from '@/shared/components/ui/button'
 import { Card } from '@/shared/components/ui/card'
+import { Input } from '@/shared/components/ui/input'
 import { cn } from '@/shared/lib/utils'
 import type { AppDispatch, RootState } from '@/app/store'
 import { logout, updateUser } from '@/features/auth/store/auth-slice'
 import { clearClientState } from '@/features/client/store/client-slice'
 import { authService } from '@/features/auth/services/auth-service'
+import { customerService } from '@/features/client/services/customer-service'
 import { useRouter } from '@/app/router'
 import { routes } from '@/app/routes'
 
@@ -69,6 +71,188 @@ function SectionCard({ children, title }: { children: ReactNode; title: string }
       </div>
       {children}
     </Card>
+  )
+}
+
+function ChangePasswordSection({ customerId }: { customerId: string }) {
+  const [oldPassword, setOldPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+
+  const [showOld, setShowOld] = useState(false)
+  const [showNew, setShowNew] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
+
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [toastNotification, setToastNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+
+  useEffect(() => {
+    if (toastNotification) {
+      const timer = setTimeout(() => {
+        setToastNotification(null)
+      }, 3000)
+      return () => clearTimeout(timer)
+    }
+  }, [toastNotification])
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault()
+    setError(null)
+
+    if (!oldPassword || !newPassword || !confirmPassword) {
+      setError('Vui lòng điền đầy đủ thông tin.')
+      return
+    }
+
+    if (newPassword !== confirmPassword) {
+      setError('Mật khẩu mới và xác nhận mật khẩu không trùng khớp.')
+      return
+    }
+
+    if (newPassword.length < 6) {
+      setError('Mật khẩu mới phải có ít nhất 6 ký tự.')
+      return
+    }
+
+    setLoading(true)
+    try {
+      await customerService.changePassword(customerId, {
+        oldPassword,
+        newPassword
+      })
+
+      setToastNotification({ message: 'Đổi mật khẩu thành công!', type: 'success' })
+      setOldPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+    } catch (err: any) {
+      const errMsg = err.response?.data?.message || 'Đổi mật khẩu thất bại. Vui lòng kiểm tra lại mật khẩu cũ.'
+      setToastNotification({ message: errMsg, type: 'error' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <>
+      <SectionCard title="Đổi mật khẩu">
+        <form onSubmit={handleSubmit} className="space-y-4 p-6">
+          {error && (
+            <div className="flex items-center gap-2 rounded-lg bg-danger/10 p-3 text-sm text-danger">
+              <AlertCircle size={16} className="shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <div>
+            <label className="mb-2 block text-sm font-medium leading-4 text-outline">
+              Mật khẩu cũ
+            </label>
+            <div className="relative">
+              <Input
+                type={showOld ? 'text' : 'password'}
+                placeholder="Nhập mật khẩu cũ"
+                value={oldPassword}
+                onChange={(e) => setOldPassword(e.target.value)}
+                required
+                className="pr-10"
+              />
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface cursor-pointer"
+                onClick={() => setShowOld(!showOld)}
+              >
+                {showOld ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium leading-4 text-outline">
+              Mật khẩu mới
+            </label>
+            <div className="relative">
+              <Input
+                type={showNew ? 'text' : 'password'}
+                placeholder="Nhập mật khẩu mới"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+                className="pr-10"
+              />
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface cursor-pointer"
+                onClick={() => setShowNew(!showNew)}
+              >
+                {showNew ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium leading-4 text-outline">
+              Xác nhận mật khẩu
+            </label>
+            <div className="relative">
+              <Input
+                type={showConfirm ? 'text' : 'password'}
+                placeholder="Xác nhận mật khẩu"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                className="pr-10"
+              />
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface cursor-pointer"
+                onClick={() => setShowConfirm(!showConfirm)}
+              >
+                {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          </div>
+
+          <Button
+            type="submit"
+            className="w-full h-12 mt-2 cursor-pointer"
+            disabled={loading}
+          >
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="animate-spin h-5 w-5 text-white animate-infinite" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Đang cập nhật...
+              </span>
+            ) : (
+              'Cập nhật mật khẩu'
+            )}
+          </Button>
+        </form>
+      </SectionCard>
+
+      {/* Floating Toast Notification */}
+      {toastNotification && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-lg border border-outline-variant bg-surface px-4 py-3 shadow-lg transition-all duration-300 ease-in-out">
+          {toastNotification.type === 'success' ? (
+            <CheckCircle className="text-success size-5 shrink-0" />
+          ) : (
+            <AlertCircle className="text-danger size-5 shrink-0" />
+          )}
+          <span className="text-sm font-medium text-on-surface">{toastNotification.message}</span>
+          <button
+            type="button"
+            className="ml-2 text-outline hover:text-on-surface cursor-pointer"
+            onClick={() => setToastNotification(null)}
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+    </>
   )
 }
 
@@ -232,18 +416,22 @@ export function ClientProfilePage() {
           </Card>
 
           <div className="grid gap-6 lg:grid-cols-2">
-            <SectionCard title="Thông tin cá nhân">
-              <div className="space-y-5 p-6">
-                {personalFields.map((field) => (
-                  <div className="block" key={field.label}>
-                    <span className="mb-2 block text-sm font-medium leading-4 text-outline">{field.label}</span>
-                    <span className="block rounded-lg border border-outline-variant bg-background px-4 py-3 text-base leading-6 text-on-surface">
-                      {field.value}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </SectionCard>
+            <div className="space-y-6">
+              <SectionCard title="Thông tin cá nhân">
+                <div className="space-y-5 p-6">
+                  {personalFields.map((field) => (
+                    <div className="block" key={field.label}>
+                      <span className="mb-2 block text-sm font-medium leading-4 text-outline">{field.label}</span>
+                      <span className="block rounded-lg border border-outline-variant bg-background px-4 py-3 text-base leading-6 text-on-surface">
+                        {field.value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </SectionCard>
+
+              <ChangePasswordSection customerId={customerId || ''} />
+            </div>
 
             <SectionCard title="Cài đặt thông báo">
               <div className="space-y-6 p-6">
@@ -348,7 +536,7 @@ export function ClientProfilePage() {
                       <button
                         type="submit"
                         disabled={isSaving}
-                        className="flex-1 py-2 bg-primary text-on-primary text-xs font-bold rounded-xl hover:opacity-90 transition-opacity shadow-lg shadow-indigo-100 cursor-pointer disabled:opacity-50"
+                        className="flex-1 py-2 bg-primary text-white text-xs font-bold rounded-xl hover:opacity-90 transition-opacity shadow-lg shadow-indigo-100 cursor-pointer disabled:opacity-50"
                       >
                         {isSaving ? 'Đang lưu...' : 'Lưu thông tin'}
                       </button>

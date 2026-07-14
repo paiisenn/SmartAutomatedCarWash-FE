@@ -3,7 +3,6 @@ import { useDispatch, useSelector } from 'react-redux'
 import { ClientSidebar } from '@/features/client/components/client-sidebar'
 import { ClientTopbar } from '@/features/client/components/client-topbar'
 import { MembershipCard } from '@/features/client/components/membership-card'
-import { PromotionsSection } from '@/features/client/components/promotions-section'
 import { QuickActions } from '@/features/client/components/quick-actions'
 import { UpcomingAppointment } from '@/features/client/components/upcoming-appointment'
 import type { AppDispatch, RootState } from '@/app/store'
@@ -31,7 +30,6 @@ export function ClientDashboardPage() {
           <MembershipCard />
           <QuickActions />
           <UpcomingAppointment />
-          <PromotionsSection />
         </div>
       </main>
     </div>

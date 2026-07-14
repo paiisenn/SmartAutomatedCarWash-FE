@@ -9,6 +9,11 @@ interface ClientState {
     balance: number
     tier: string
     nextTierPoints: number
+    totalVisits: number
+    remainingVisits: number
+    silverThreshold: number
+    goldThreshold: number
+    platinumThreshold: number
     isLoading: boolean
     error: string | null
   }
@@ -29,6 +34,11 @@ const initialState: ClientState = {
     balance: 0,
     tier: 'Regular',
     nextTierPoints: 0,
+    totalVisits: 0,
+    remainingVisits: 0,
+    silverThreshold: 10,
+    goldThreshold: 25,
+    platinumThreshold: 50,
     isLoading: false,
     error: null,
   },
@@ -102,6 +112,11 @@ const clientSlice = createSlice({
         state.loyalty.balance = action.payload.balance !== undefined ? action.payload.balance : (action.payload.currentPoints ?? 0)
         state.loyalty.tier = action.payload.tier || 'Regular'
         state.loyalty.nextTierPoints = action.payload.nextTierPoints || 0
+        state.loyalty.totalVisits = action.payload.totalVisits ?? 0
+        state.loyalty.remainingVisits = action.payload.remainingVisits ?? 0
+        state.loyalty.silverThreshold = action.payload.silverThreshold ?? 10
+        state.loyalty.goldThreshold = action.payload.goldThreshold ?? 25
+        state.loyalty.platinumThreshold = action.payload.platinumThreshold ?? 50
       })
       .addCase(fetchLoyaltyBalance.rejected, (state, action) => {
         state.loyalty.isLoading = false

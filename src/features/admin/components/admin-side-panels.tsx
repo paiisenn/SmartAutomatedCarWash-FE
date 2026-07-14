@@ -1,5 +1,4 @@
-import { ArrowRight, Clock, Sparkles } from 'lucide-react'
-import { inventoryAlert } from '@/features/admin/data/admin-dashboard'
+import { Clock, Sparkles } from 'lucide-react'
 import { Button } from '@/shared/components/ui/button'
 import { Card, CardContent } from '@/shared/components/ui/card'
 import { cn } from '@/shared/lib/utils'
@@ -156,43 +155,18 @@ export function TierDistributionPanel({ stats }: { stats: any }) {
 }
 
 export function AdminActionCards() {
-  const AlertIcon = inventoryAlert.icon
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      <div className="relative overflow-hidden rounded-2xl bg-primary p-6 text-primary-foreground shadow-sm">
-        <div className="relative z-10">
-          <h4 className="mb-2 text-base font-bold tracking-tight">Nâng cấp gói Diamond</h4>
-          <p className="mb-6 text-xs leading-relaxed text-white/80 font-medium">
-            Ưu đãi 15% cho khách hàng Silver nâng cấp lên Platinum trong tuần này.
-          </p>
-          <Button className="bg-white px-5 rounded-xl text-primary hover:bg-slate-50 text-xs font-bold shadow-md" type="button">
-            Gửi thông báo
-          </Button>
-        </div>
-        <Sparkles className="absolute -bottom-8 -right-8 text-white/10" size={120} />
+    <div className="relative overflow-hidden rounded-2xl bg-primary p-6 text-primary-foreground shadow-sm">
+      <div className="relative z-10">
+        <h4 className="mb-2 text-base font-bold tracking-tight">Nâng cấp gói Diamond</h4>
+        <p className="mb-6 text-xs leading-relaxed text-white/80 font-medium">
+          Ưu đãi 15% cho khách hàng Silver nâng cấp lên Platinum trong tuần này.
+        </p>
+        <Button className="bg-white px-5 rounded-xl text-primary hover:bg-slate-50 text-xs font-bold shadow-md" type="button">
+          Gửi thông báo
+        </Button>
       </div>
-
-      <Card className="shadow-sm bg-white border border-slate-100 rounded-2xl">
-        <CardContent className="flex h-full flex-col justify-between p-6">
-          <div>
-            <h4 className="mb-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              Cảnh báo tồn kho
-            </h4>
-            <div className="flex items-center gap-4">
-              <span className="grid size-12 place-items-center rounded-xl bg-rose-50 text-rose-600 border border-rose-100 shrink-0">
-                <AlertIcon size={22} />
-              </span>
-              <div>
-                <p className="text-sm font-bold text-slate-800 tracking-tight">{inventoryAlert.title}</p>
-                <p className="text-[11px] font-semibold text-rose-500 mt-0.5">{inventoryAlert.subtitle}</p>
-              </div>
-            </div>
-          </div>
-          <a className="mt-5 inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-700 transition-colors" href="#inventory">
-            Xem chi tiết <ArrowRight size={14} />
-          </a>
-        </CardContent>
-      </Card>
+      <Sparkles className="absolute -bottom-8 -right-8 text-white/10" size={120} />
     </div>
   )
 }

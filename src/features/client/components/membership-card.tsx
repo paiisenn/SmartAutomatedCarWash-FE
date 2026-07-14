@@ -2,44 +2,60 @@ import { CarFront } from 'lucide-react'
 import { useSelector } from 'react-redux'
 import { Button } from '@/shared/components/ui/button'
 import type { RootState } from '@/app/store'
+import { routes } from '@/app/routes'
+import { useRouter } from '@/app/router'
 
 export function MembershipCard() {
-  const { balance, tier, nextTierPoints, isLoading } = useSelector((state: RootState) => state.client.loyalty)
+  const { navigate } = useRouter()
+  const {
+    balance,
+    tier,
+    totalVisits,
+    remainingVisits,
+    silverThreshold,
+    goldThreshold,
+    platinumThreshold,
+    isLoading
+  } = useSelector((state: RootState) => state.client.loyalty)
 
   const formattedBalance = new Intl.NumberFormat('vi-VN').format(balance)
   
-  // Determine next tier info
-  let nextTierName = 'Platinum'
-  let currentTierThreshold = 1000
-  let nextTierThreshold = 2000
+  // Tier calculation logic based on visits from system config
+  const sThresh = silverThreshold !== undefined ? silverThreshold : 10
+  const gThresh = goldThreshold !== undefined ? goldThreshold : 25
+  const pThresh = platinumThreshold !== undefined ? platinumThreshold : 50
 
-  if (tier.toLowerCase() === 'regular') {
+  let nextTierName = 'Silver'
+  let currentTierThreshold = 0
+  let nextTierThreshold = sThresh
+  const tierLower = (tier || 'Regular').toLowerCase()
+
+  if (tierLower === 'regular' || tierLower === 'member') {
     nextTierName = 'Silver'
     currentTierThreshold = 0
-    nextTierThreshold = 500
-  } else if (tier.toLowerCase() === 'silver') {
+    nextTierThreshold = sThresh
+  } else if (tierLower === 'silver') {
     nextTierName = 'Gold'
-    currentTierThreshold = 500
-    nextTierThreshold = 1000
-  } else if (tier.toLowerCase() === 'gold') {
+    currentTierThreshold = sThresh
+    nextTierThreshold = gThresh
+  } else if (tierLower === 'gold') {
     nextTierName = 'Platinum'
-    currentTierThreshold = 1000
-    nextTierThreshold = 2000
+    currentTierThreshold = gThresh
+    nextTierThreshold = pThresh
   } else {
     nextTierName = ''
   }
 
-  // Calculate progress
-  // If nextTierPoints is provided by backend, use it. Otherwise, estimate from balance.
-  const remainingPoints = nextTierPoints > 0 ? nextTierPoints : Math.max(0, nextTierThreshold - balance)
+  // Calculate progress based on visits (lượt rửa xe)
+  const remainingVisitsCount = remainingVisits !== undefined ? remainingVisits : Math.max(0, nextTierThreshold - totalVisits)
   const range = nextTierThreshold - currentTierThreshold
-  const currentProgressInTier = balance - currentTierThreshold
+  const currentProgressInTier = totalVisits - currentTierThreshold
   const progressPercent = nextTierName
     ? Math.min(100, Math.max(0, (currentProgressInTier / range) * 100))
     : 100
 
   return (
-    <section className="lg:col-span-8">
+    <section className="col-span-12 lg:col-span-8" data-tour="membership-card">
       <div className="relative flex h-full min-h-[292px] flex-col justify-between overflow-hidden rounded-xl bg-primary p-6 text-primary-foreground">
         <div className="absolute -right-16 -top-16 size-64 rounded-full bg-white/10 blur-3xl" />
         <CarFront className="absolute bottom-6 right-6 opacity-20" size={120} />
@@ -48,7 +64,7 @@ export function MembershipCard() {
           <div className="mb-6 flex items-start justify-between gap-6">
             <div>
               <span className="mb-3 inline-block rounded-lg bg-tier-gold px-3 py-1 text-xs font-medium uppercase tracking-wide text-[#2f1400]">
-                {tier} Member
+                Hạng {tier}
               </span>
               <h2 className="text-[32px] font-medium leading-10">Tình trạng thành viên</h2>
             </div>
@@ -61,9 +77,9 @@ export function MembershipCard() {
           {nextTierName && (
             <div className="mt-8">
               <div className="mb-2 flex items-center justify-between gap-4">
-                <span className="text-sm font-medium leading-4">Tiến trình hạng tiếp theo</span>
+                <span className="text-sm font-medium leading-4">Tiến trình thăng hạng (theo số lần rửa xe)</span>
                 <span className="text-sm font-medium leading-4 text-tier-gold">
-                  còn {remainingPoints} điểm → {nextTierName}
+                  còn {remainingVisitsCount} lượt rửa → {nextTierName}
                 </span>
               </div>
               <div className="h-3 w-full rounded-full bg-white/20">
@@ -74,15 +90,20 @@ export function MembershipCard() {
         </div>
 
         <div className="relative mt-8 flex flex-wrap gap-4">
-          <Button className="bg-white px-6 text-primary hover:bg-surface-container-low" type="button">
-            Xem quyền lợi hạng {tier}
+          <Button 
+            onClick={() => navigate(routes.loyalty)}
+            className="bg-white px-6 text-primary hover:bg-surface-container-low cursor-pointer" 
+            type="button"
+          >
+            Xem quyền lợi & lịch sử điểm
           </Button>
           <Button
-            className="border-white/40 bg-transparent px-6 text-white hover:bg-white/10 hover:text-white"
+            onClick={() => navigate(routes.booking)}
+            className="border-white/40 bg-transparent px-6 text-white hover:bg-white/10 hover:text-white cursor-pointer"
             type="button"
             variant="outline"
           >
-            Đổi quà
+            Đặt lịch & Dùng điểm
           </Button>
         </div>
       </div>

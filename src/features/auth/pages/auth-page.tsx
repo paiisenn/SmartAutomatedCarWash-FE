@@ -24,7 +24,6 @@ export function AuthPage({ mode }: AuthPageProps) {
   const { navigate } = useRouter()
   const dispatch = useDispatch()
 
-  // Get authentication state from Redux
   const { isLoading, error: reduxError } = useSelector((state: RootState) => state.auth)
 
   // Form states
@@ -35,14 +34,17 @@ export function AuthPage({ mode }: AuthPageProps) {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
 
-  // Local UI states (messages)
   const [localError, setLocalError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
-  // Redirect if already authenticated
   useEffect(() => {
     if (authStore.isAuthenticated()) {
-      navigate(routes.dashboard)
+      const user = authStore.getUser()
+      if (user?.role === 'ADMIN') {
+        navigate(routes.admin)
+      } else {
+        navigate(routes.dashboard)
+      }
     }
   }, [navigate])
 
@@ -75,18 +77,45 @@ export function AuthPage({ mode }: AuthPageProps) {
         const token = data.token || data.accessToken || data.jwt
 
         if (token) {
+          const userRole = data.role || data.user?.role
+          const userFullName = data.fullName || data.user?.name || data.user?.fullName
+          const userPhone = data.phone || data.user?.phone || (!emailOrPhone.includes('@') ? emailOrPhone : undefined)
+          const userEmail = (data as any).email || data.user?.email || (emailOrPhone.includes('@') ? emailOrPhone : undefined)
+          
+          let tokenUserId = undefined
+          try {
+            const base64Url = token.split('.')[1]
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+            const payload = JSON.parse(window.atob(base64))
+            tokenUserId = payload.id || payload.userId || payload.customerId || payload.sub
+          } catch (e) {
+            console.error('Lỗi giải mã JWT token:', e)
+          }
+
+          const userId = (data as any).id || (data as any).userId || data.user?.id || tokenUserId || userPhone
+
+          const loggedInUser = {
+            id: userId,
+            name: userFullName,
+            fullName: userFullName,
+            email: userEmail,
+            phone: userPhone,
+            role: userRole,
+          }
+
           dispatch(loginSuccess({
             token,
             refreshToken: data.refreshToken,
-            user: data.user || {
-              email: emailOrPhone.includes('@') ? emailOrPhone : undefined,
-              phone: !emailOrPhone.includes('@') ? emailOrPhone : undefined,
-            }
+            user: loggedInUser
           }))
           toast.success('Đăng nhập thành công!')
           setSuccess('Đăng nhập thành công! Đang chuyển hướng...')
           setTimeout(() => {
-            navigate(routes.dashboard)
+            if (userRole === 'ADMIN') {
+              navigate(routes.admin)
+            } else {
+              navigate(routes.dashboard)
+            }
           }, 1000)
         } else {
           throw new Error('Không nhận được token từ server')

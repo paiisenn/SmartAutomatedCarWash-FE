@@ -167,7 +167,7 @@ export function ClientVehiclesPage() {
               </p>
             </div>
             <Button
-              className="h-11 gap-2 px-5 bg-primary text-on-primary hover:opacity-95"
+              className="h-11 gap-2 px-5 bg-primary text-white hover:opacity-95"
               type="button"
               onClick={() => {
                 resetForm()
@@ -200,7 +200,7 @@ export function ClientVehiclesPage() {
                 </div>
                 <Button
                   onClick={() => setIsAddOpen(true)}
-                  className="bg-primary text-on-primary hover:opacity-95"
+                  className="bg-primary text-white hover:opacity-95"
                 >
                   Thêm xe mới
                 </Button>
@@ -403,7 +403,7 @@ export function ClientVehiclesPage() {
                       </button>
                       <button
                         type='submit'
-                        className='flex-1 py-2 bg-primary text-on-primary text-xs font-bold rounded-xl hover:opacity-90 transition-opacity shadow-lg shadow-indigo-100 cursor-pointer'
+                        className='flex-1 py-2 bg-primary text-white text-xs font-bold rounded-xl hover:opacity-90 transition-opacity shadow-lg shadow-indigo-100 cursor-pointer'
                       >
                         Đăng ký xe
                       </button>
@@ -505,7 +505,7 @@ export function ClientVehiclesPage() {
                       </button>
                       <button
                         type='submit'
-                        className='flex-1 py-2 bg-primary text-on-primary text-xs font-bold rounded-xl hover:opacity-90 transition-opacity shadow-lg shadow-indigo-100 cursor-pointer'
+                        className='flex-1 py-2 bg-primary text-white text-xs font-bold rounded-xl hover:opacity-90 transition-opacity shadow-lg shadow-indigo-100 cursor-pointer'
                       >
                         Lưu thay đổi
                       </button>

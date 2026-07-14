@@ -84,7 +84,7 @@ authorizeAxios.interceptors.response.use(
         return new Promise((resolve, reject) => {
           // Use standard axios to avoid trigger interceptors recursively
           axios
-            .post(`${BASE_URL}/api/auth/refresh`, {
+            .post(`${BASE_URL}/auth/refresh`, {
               token,
               refreshToken,
             })

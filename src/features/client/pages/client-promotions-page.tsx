@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSelector } from 'react-redux'
-import { Gift, Layers, Percent } from 'lucide-react'
+import { Gift, Percent } from 'lucide-react'
 import { ClientSidebar } from '@/features/client/components/client-sidebar'
 import { ClientTopbar } from '@/features/client/components/client-topbar'
 import { Button } from '@/shared/components/ui/button'
@@ -10,11 +10,14 @@ import { cn } from '@/shared/lib/utils'
 import { useRouter } from '@/app/router'
 import { routes } from '@/app/routes'
 import type { RootState } from '@/app/store'
+import { promotionService } from '@/features/client/services/promotion-service'
 
 export default function ClientPromotionsPage() {
   const { navigate } = useRouter()
   const { tier } = useSelector((state: RootState) => state.client.loyalty)
   const [activeTab, setActiveTab] = useState<'active' | 'used'>('active')
+  const [promos, setPromos] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
   const getTierRank = (t: string) => {
     const name = (t || '').toLowerCase()
@@ -30,48 +33,102 @@ export default function ClientPromotionsPage() {
     navigate(routes.booking)
   }
 
-  // Cards definitions with required ranks
-  const promos = [
-    {
-      id: 'p1',
-      title: 'Giảm 20% gói Premium',
-      description: 'Áp dụng cho lần rửa tiếp theo',
-      requiredRank: 3,
-      badgeText: 'GOLD+',
-      badgeVariant: 'gold' as const,
-      bgClass: 'bg-[#FFFBEB]',
-      iconColor: 'text-warning',
-      icon: Percent,
-      expiryText: 'Hạn dùng: 31/12/2026',
-      requiredTierName: 'hạng Vàng'
-    },
-    {
-      id: 'p2',
-      title: 'Miễn phí rửa xe',
-      description: 'Thưởng đặc biệt mừng sinh nhật',
-      requiredRank: 1,
-      badgeText: 'MEMBER+',
-      badgeVariant: 'member' as const,
-      bgClass: 'bg-[#F0FDF4]',
-      iconColor: 'text-success',
-      icon: Gift,
-      expiryText: 'Hạn dùng: 15/12/2026',
-      requiredTierName: 'hạng Thường'
-    },
-    {
-      id: 'p3',
-      title: 'Tặng phủ Nano',
-      description: 'Nâng cấp dịch vụ miễn phí',
-      requiredRank: 2,
-      badgeText: 'SILVER+',
-      badgeVariant: 'silver' as const,
-      bgClass: 'bg-[#EFF6FF]',
-      iconColor: 'text-info',
-      icon: Layers,
-      expiryText: 'Hạn dùng: 20/12/2026',
-      requiredTierName: 'hạng Bạc'
+  const getTierRankFromTiers = (targetTiers: string) => {
+    const tiers = (targetTiers || '').toUpperCase()
+    if (tiers.includes('PLATINUM')) return 4
+    if (tiers.includes('GOLD')) return 3
+    if (tiers.includes('SILVER')) return 2
+    return 1
+  }
+
+  const getTierInfo = (rank: number) => {
+    switch (rank) {
+      case 4:
+        return {
+          badgeText: 'PLATINUM',
+          badgeVariant: 'platinum' as const,
+          bgClass: 'bg-[#F8FAFC]',
+          iconColor: 'text-slate-600',
+          requiredTierName: 'hạng Bạch Kim'
+        }
+      case 3:
+        return {
+          badgeText: 'GOLD+',
+          badgeVariant: 'gold' as const,
+          bgClass: 'bg-[#FFFBEB]',
+          iconColor: 'text-warning',
+          requiredTierName: 'hạng Vàng'
+        }
+      case 2:
+        return {
+          badgeText: 'SILVER+',
+          badgeVariant: 'silver' as const,
+          bgClass: 'bg-[#EFF6FF]',
+          iconColor: 'text-info',
+          requiredTierName: 'hạng Bạc'
+        }
+      case 1:
+      default:
+        return {
+          badgeText: 'MEMBER+',
+          badgeVariant: 'member' as const,
+          bgClass: 'bg-[#F0FDF4]',
+          iconColor: 'text-success',
+          requiredTierName: 'hạng Thường'
+        }
     }
-  ]
+  }
+
+  const getIconInfo = (value: number) => {
+    if (value <= 100) {
+      return { icon: Percent }
+    }
+    return { icon: Gift }
+  }
+
+  useEffect(() => {
+    const fetchPromos = async () => {
+      try {
+        const data = await promotionService.getActivePromotions()
+        const mapped = data.map((item) => {
+          const rank = getTierRankFromTiers(item.targetTiers)
+          const tierInfo = getTierInfo(rank)
+          const iconInfo = getIconInfo(item.value)
+          
+          let expiryText = 'Hạn dùng: Vô thời hạn'
+          if (item.endsAt) {
+            try {
+              const d = new Date(item.endsAt)
+              const formattedDate = `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`
+              expiryText = `Hạn dùng: ${formattedDate}`
+            } catch (e) {
+              console.error(e)
+            }
+          }
+
+          return {
+            id: item.promoId,
+            title: item.name,
+            description: item.description || 'Áp dụng ưu đãi đặc quyền AutoWash',
+            requiredRank: rank,
+            badgeText: tierInfo.badgeText,
+            badgeVariant: tierInfo.badgeVariant,
+            bgClass: tierInfo.bgClass,
+            iconColor: tierInfo.iconColor,
+            icon: iconInfo.icon,
+            expiryText: expiryText,
+            requiredTierName: tierInfo.requiredTierName
+          }
+        })
+        setPromos(mapped)
+      } catch (err) {
+        console.error('Lỗi khi tải danh sách khuyến mãi:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchPromos()
+  }, [])
 
   return (
     <div className="min-h-screen bg-background text-on-surface">
@@ -107,7 +164,13 @@ export default function ClientPromotionsPage() {
           </div>
 
           {/* Promo Content */}
-          {activeTab === 'active' && (
+          {loading && activeTab === 'active' && (
+            <div className="mt-12 text-center text-on-surface-variant animate-pulse">
+              Đang tải danh sách khuyến mãi...
+            </div>
+          )}
+
+          {!loading && activeTab === 'active' && promos.length > 0 && (
             <div className="mt-6">
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {promos.map((promo) => {
@@ -143,7 +206,7 @@ export default function ClientPromotionsPage() {
                           <Button
                             variant="default"
                             onClick={handleUsePromo}
-                            className="bg-primary text-on-primary hover:bg-info transition-colors"
+                            className="bg-primary text-white hover:bg-info transition-colors"
                           >
                             Dùng ngay
                           </Button>
@@ -200,29 +263,32 @@ export default function ClientPromotionsPage() {
           )}
 
           {/* Empty State Section */}
-          <section className="mx-auto mt-24 flex max-w-2xl flex-col items-center rounded-xl border border-outline-variant bg-surface py-6 text-center shadow-sm lg:py-8">
-            <div className="mb-6 h-48 w-48">
-              <img
-                alt="Gift box illustration"
-                className="h-full w-full rounded-lg object-contain"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuD0s0mldjCHn8JL7XO5Vx56HF-3XoRfrcMxqHwjyHmIm7jM_AbpZ8PijdTfGHYbYWjoZRxGAascKz2N-JsS5tMpKP8W1AWGRur60eWfJbTQPzG8Z3lCv9pV6OPLXwAO6AFx2UkMWRKGdyiucJQ17De86KRJcRp-coLnsUw0xfwL4SZyy90Wb34_eGcfpqYAzSGgiXuvafqpH8hZGAoLQ_ryZeDIfBAagfSStOGCC4Iac7lthR1NP0mhU5gVF_j7fpgRa4KsVeXKNuE"
-              />
-            </div>
-            <h3 className="mb-3 text-2xl font-medium text-on-surface">Chưa có ưu đãi nào</h3>
-            <p className="mb-6 px-6 text-base text-on-surface-variant">
-              Hãy tích thêm điểm để nâng hạng Tier và nhận ưu đãi độc quyền dành riêng cho bạn!
-            </p>
-            <Button
-              size="lg"
-              onClick={() => navigate(routes.loyalty)}
-              className="gap-2 px-6 h-11 bg-primary text-on-primary hover:opacity-90 transition-opacity"
-            >
-              <Gift size={20} />
-              Xem bảng tích điểm
-            </Button>
-          </section>
+          {!loading && activeTab === 'active' && promos.length === 0 && (
+            <section className="mx-auto mt-24 flex max-w-2xl flex-col items-center rounded-xl border border-outline-variant bg-surface py-6 text-center shadow-sm lg:py-8">
+              <div className="mb-6 h-48 w-48">
+                <img
+                  alt="Gift box illustration"
+                  className="h-full w-full rounded-lg object-contain"
+                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuD0s0mldjCHn8JL7XO5Vx56HF-3XoRfrcMxqHwjyHmIm7jM_AbpZ8PijdTfGHYbYWjoZRxGAascKz2N-JsS5tMpKP8W1AWGRur60eWfJbTQPzG8Z3lCv9pV6OPLXwAO6AFx2UkMWRKGdyiucJQ17De86KRJcRp-coLnsUw0xfwL4SZyy90Wb34_eGcfpqYAzSGgiXuvafqpH8hZGAoLQ_ryZeDIfBAagfSStOGCC4Iac7lthR1NP0mhU5gVF_j7fpgRa4KsVeXKNuE"
+                />
+              </div>
+              <h3 className="mb-3 text-2xl font-medium text-on-surface">Chưa có ưu đãi nào</h3>
+              <p className="mb-6 px-6 text-base text-on-surface-variant">
+                Hãy tích thêm điểm để nâng hạng Tier và nhận ưu đãi độc quyền dành riêng cho bạn!
+              </p>
+              <Button
+                size="lg"
+                onClick={() => navigate(routes.loyalty)}
+                className="gap-2 px-6 h-11 bg-primary text-white hover:opacity-90 transition-opacity"
+              >
+                <Gift size={20} />
+                Xem bảng tích điểm
+              </Button>
+            </section>
+          )}
         </div>
       </main>
     </div>
   )
 }
+

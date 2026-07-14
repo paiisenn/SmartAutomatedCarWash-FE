@@ -5,8 +5,8 @@ import { Badge } from '@/shared/components/ui/badge'
 import { Button } from '@/shared/components/ui/button'
 import { AdminSidebar } from '@/features/admin/components/admin-sidebar'
 import { AdminTopbar } from '@/features/admin/components/admin-topbar'
-import { cn } from '@/shared/lib/utils'
-import { adminBookingService } from '@/features/admin/services/admin-booking-service'
+import { formatCurrency, cn } from '@/shared/lib/utils'
+import { adminService } from '@/features/admin/services/admin-service'
 import { bookingService } from '@/features/booking/services/booking-service'
 
 export interface Booking {
@@ -18,6 +18,13 @@ export interface Booking {
   priorityScore: number; notes: string; createdAt: string;
   customer?: { customerId: string; fullName: string; phone: string; tier: string };
   vehicle?: { vehicleId: string; licensePlate: string; vehicleType: string; brand: string };
+  selectedServices?: { serviceId: string; serviceName: string; quantity: number; unitPrice: number; duration: number; subtotal: number }[];
+  discountAmount?: number;
+  promotionCode?: string;
+  usedPoints?: number;
+  promoName?: string;
+  pointsDiscountAmount?: number;
+  totalAmount?: number;
 }
 
 export function AdminBookingsPage() {
@@ -35,16 +42,21 @@ export function AdminBookingsPage() {
   const [newCustPhone, setNewCustPhone] = useState('');
   const [newCarPlate, setNewCarPlate] = useState('');
   const [newCarModel, setNewCarModel] = useState('');
-  const [newService, setNewService] = useState('BASIC');
   const [newScheduledAt, setNewScheduledAt] = useState<string>('');
   const [phoneMessage, setPhoneMessage] = useState<{ text: string; isNew: boolean } | null>(null);
-
   
+  // Dynamic services select states
+  const [adminServicesList, setAdminServicesList] = useState<any[]>([]);
+  const [newServiceIds, setNewServiceIds] = useState<string[]>([]);
+
+  // Load bookings list
   const fetchBookings = async () => {
     setLoading(true)
     try {
-      const data = await adminBookingService.getAdminBookings(selectedStatusFilter, dateRangeText)
-      setBookings(data)
+      const apiStatus = selectedStatusFilter === 'Tất cả trạng thái' ? undefined : selectedStatusFilter
+      const dateParam = dateRangeText && dateRangeText.trim() !== '' ? dateRangeText : undefined
+      const data = await adminService.getBookings({ status: apiStatus, date: dateParam })
+      setBookings(data as any[])
     } catch (error) {
       console.error('Lỗi khi lấy danh sách lịch hẹn:', error)
       setBookings([])
@@ -53,17 +65,31 @@ export function AdminBookingsPage() {
     }
   }
 
+  // Load all active services for select menu
+  useEffect(() => {
+    const loadServices = async () => {
+      try {
+        const data = await adminService.getAdminServices()
+        setAdminServicesList(data.filter(s => s.active))
+      } catch (err) {
+        console.error('Failed to load services for select menu:', err)
+      }
+    }
+    loadServices()
+  }, [])
+
   useEffect(() => {
     fetchBookings()
   }, [selectedStatusFilter, dateRangeText])
 
   const onUpdateBookingStatus = async (id: string, newStatus: Booking['status']) => {
     try {
-      await adminBookingService.updateAdminBookingStatus(id, newStatus)
+      await adminService.updateBookingStatus(id, newStatus)
       setBookings(prev => prev.map(b => b.bookingId === id ? { ...b, status: newStatus } : b))
       alert(`Đã cập nhật trạng thái đơn sang ${newStatus} thành công!`)
-    } catch (error) {
-      console.error('Lỗi kết nối API cập nhật trạng thái:', error)
+    } catch (error: any) {
+      console.error('Lỗi cập nhật trạng thái:', error)
+      alert(`Lỗi hệ thống: ${error.response?.data?.message || error.message || 'Không thể chuyển trạng thái'}`)
     }
   }
 
@@ -74,10 +100,10 @@ export function AdminBookingsPage() {
       return
     }
     try {
-      const data = await adminBookingService.checkCustomerByPhone(phoneVal.trim())
-      if (data.exists) {
-        setNewCustName(data.fullName)
-        setNewCustTier(data.tier)
+      const data = await adminService.checkCustomerByPhone(phoneVal.trim())
+      if (data && data.exists) {
+        setNewCustName(data.fullName || '')
+        setNewCustTier((data.tier as any) || 'MEMBER')
         setPhoneMessage({ text: `✨ Hệ thống nhận diện: Khách quen [${data.fullName}] - Hạng [${data.tier}]`, isNew: false })
       } else {
         setPhoneMessage({ text: "🆕 Số điện thoại mới! Hệ thống sẽ khởi tạo tài khoản khi tạo đơn.", isNew: true })
@@ -87,11 +113,24 @@ export function AdminBookingsPage() {
     }
   }
 
+  const handleOpenNewBookingModal = () => {
+    setIsNewBookingOpen(true)
+    if (adminServicesList.length > 0) {
+      setNewServiceIds([adminServicesList[0].serviceId])
+    } else {
+      setNewServiceIds([])
+    }
+  }
+
   const handleCreateNewBookingSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newCustName || !newCarPlate || !newCarModel) return
     if (!newScheduledAt) {
       alert('Vui lòng chọn thời gian hẹn dịch vụ!')
+      return
+    }
+    if (newServiceIds.length === 0) {
+      alert('Vui lòng chọn ít nhất một dịch vụ cho đơn đặt!')
       return
     }
 
@@ -103,11 +142,16 @@ export function AdminBookingsPage() {
         activeVehicleId = bookings[0].vehicleId
       }
 
+      const selectedNames = adminServicesList
+        .filter(s => newServiceIds.includes(s.serviceId))
+        .map(s => s.name)
+        .join(', ')
+
       await bookingService.createBooking({
         vehicleId: activeVehicleId,   
-        serviceType: newService,      
+        serviceIds: newServiceIds,
         scheduledAt: formattedDate,   
-        notes: `POS Admin: Khách ${newCustName} | Phone: ${newCustPhone || '0912222222'} | Biển số: ${newCarPlate.toUpperCase()} | Dòng xe: ${newCarModel}`
+        notes: `POS Admin: Khách ${newCustName} | Phone: ${newCustPhone || '0912222222'} | Biển số: ${newCarPlate.toUpperCase()} | Dòng xe: ${newCarModel} | Dịch vụ: ${selectedNames}`
       })
 
       alert('Tạo lịch hẹn dịch vụ mới thành công!')
@@ -119,16 +163,17 @@ export function AdminBookingsPage() {
       setNewCustPhone('')
       setNewCarPlate('')
       setNewCarModel('')
-      setNewService('BASIC')
+      setNewServiceIds([])
       setNewScheduledAt('')
-    } catch (error) {
+    } catch (error: any) {
       console.error(error)
+      alert(`Không thể tạo đơn: ${error.response?.data?.message || error.message || 'Lỗi kiểm tra dữ liệu'}`)
     }
   }
 
   const getDisplayInfo = (booking: Booking) => {
     let name = booking.customerName || booking.customer?.fullName || "Khách Hàng Hệ Thống"
-    let plate = booking.licensePlate || booking.vehicle?.licensePlate || "XE_MÁY"
+    let plate = booking.licensePlate || (booking as any).carPlate || booking.vehicle?.licensePlate || "Chưa rõ"
     let type = booking.vehicleType || booking.vehicle?.vehicleType || "MOTORBIKE"
     let phone = booking.customerPhone || booking.customer?.phone || "N/A"
 
@@ -207,9 +252,9 @@ export function AdminBookingsPage() {
         onSearchChange={setSearchText}
         actions={
           <Button
-            className="h-10 gap-2 px-4 bg-primary text-on-primary hover:opacity-90"
+            className="h-10 gap-2 px-4 bg-primary text-white hover:opacity-90 select-none cursor-pointer"
             type="button"
-            onClick={() => setIsNewBookingOpen(true)}
+            onClick={handleOpenNewBookingModal}
           >
             <Plus size={16} />
             Booking Mới
@@ -231,7 +276,7 @@ export function AdminBookingsPage() {
             </div>
 
             <button
-              onClick={() => setIsNewBookingOpen(true)}
+              onClick={handleOpenNewBookingModal}
               className='bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-lg shrink-0 cursor-pointer'
             >
               <Plus className='w-4 h-4' />
@@ -301,8 +346,10 @@ export function AdminBookingsPage() {
                     <tbody className='divide-y divide-slate-100'>
                       {currentItems.map((booking) => {
                         const rowInfo = getDisplayInfo(booking)
-
                         const displayTier = booking.customer?.tier || booking.customerTier || 'MEMBER'
+                        const serviceNames = booking.selectedServices && booking.selectedServices.length > 0
+                          ? booking.selectedServices.map(s => s.serviceName).join(', ')
+                          : (booking.serviceType || 'Chưa chọn')
                         
                         return (
                           <tr
@@ -317,7 +364,6 @@ export function AdminBookingsPage() {
                             <td className='px-5 py-4'>
                               <div className='flex items-center gap-1.5'>
                                 <span className='text-xs font-bold text-slate-850'>{rowInfo.name}</span>
-                                {/* 2. Sử dụng biến displayTier đã định nghĩa ở trên */}
                                 <Badge variant={getTierVariant(displayTier) as any}>{displayTier}</Badge>
                               </div>
                             </td>
@@ -325,7 +371,9 @@ export function AdminBookingsPage() {
                               <div className='text-xs font-bold text-slate-800'>{rowInfo.plate}</div>
                               <div className='text-[10px] text-slate-455 font-bold uppercase mt-0.5'>{rowInfo.type}</div>
                             </td>
-                            <td className='px-5 py-4 text-xs font-semibold text-slate-650'>{booking.serviceType}</td>
+                            <td className='px-5 py-4 text-xs font-semibold text-slate-650 max-w-[200px] truncate' title={serviceNames}>
+                              {serviceNames}
+                            </td>
                             <td className='px-5 py-4'>
                               <div className='text-xs font-bold text-slate-800'>{new Date(booking.scheduledAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
                               <div className='text-[10px] text-slate-450 font-semibold mt-0.5'>{new Date(booking.scheduledAt).toLocaleDateString()}</div>
@@ -394,16 +442,66 @@ export function AdminBookingsPage() {
                     <div className='space-y-3'>
                       <h4 className='text-[10px] uppercase font-bold text-slate-400'>Thông tin xe & Dịch vụ</h4>
                       <div className='space-y-2 border-t border-slate-150 pt-2 text-xs'>
-                        <div className='flex justify-between items-center py-1.5 border-b border-dashed border-slate-100'><span className='text-slate-450 font-bold uppercase text-[10px]'>Biển kiểm soát</span><span className='font-bold text-slate-800'>{activeInfo.plate}</span></div>
-                        <div className='flex justify-between items-center py-1.5 border-b border-dashed border-slate-100'><span className='text-slate-450 font-bold uppercase text-[10px]'>Gói dịch vụ</span><span className='font-bold text-slate-800'>{activeBooking.serviceType}</span></div>
-                        <div className='flex justify-between items-center py-1.5 border-b border-dashed border-slate-100'><span className='text-slate-450 font-bold uppercase text-[10px]'>Giá trị hóa đơn</span><span className='font-bold text-emerald-600'>{activeBooking.basePrice ? activeBooking.basePrice.toLocaleString() : (activeBooking.serviceType === 'PREMIUM' ? '50,000' : (activeBooking.serviceType === 'FULL_DETAIL' ? '80,000' : '30,000'))} VND</span></div>
+                        <div className='flex justify-between items-center py-1.5 border-b border-dashed border-slate-100'>
+                          <span className='text-slate-450 font-bold uppercase text-[10px]'>Biển kiểm soát</span>
+                          <span className='font-bold text-slate-800'>{activeInfo.plate}</span>
+                        </div>
+                        <div className='flex justify-between items-center py-1.5 border-b border-dashed border-slate-100'>
+                          <span className='text-slate-450 font-bold uppercase text-[10px]'>Gói dịch vụ</span>
+                          <span className='font-bold text-slate-850 text-right max-w-[220px] truncate' title={
+                            activeBooking.selectedServices && activeBooking.selectedServices.length > 0
+                              ? activeBooking.selectedServices.map(s => s.serviceName).join(', ')
+                              : activeBooking.serviceType
+                          }>
+                            {activeBooking.selectedServices && activeBooking.selectedServices.length > 0
+                              ? activeBooking.selectedServices.map(s => s.serviceName).join(', ')
+                              : activeBooking.serviceType}
+                          </span>
+                        </div>
+                        {/* Tạm tính nếu có chiết khấu */}
+                        {((activeBooking.discountAmount && activeBooking.discountAmount > 0) || (activeBooking.usedPoints && activeBooking.usedPoints > 0)) && (
+                          <div className='flex justify-between items-center py-1.5 border-b border-dashed border-slate-100'>
+                            <span className='text-slate-450 font-bold uppercase text-[10px]'>Tạm tính</span>
+                            <span className='font-bold text-slate-700'>
+                              {formatCurrency(
+                                activeBooking.selectedServices && activeBooking.selectedServices.length > 0
+                                  ? activeBooking.selectedServices.reduce((acc, s) => acc + (s.unitPrice || 0), 0)
+                                  : activeBooking.basePrice
+                              )}
+                            </span>
+                          </div>
+                        )}
+                        {/* Chiết khấu Promo Voucher */}
+                        {activeBooking.discountAmount && activeBooking.discountAmount > 0 ? (
+                          <div className='flex justify-between items-center py-1.5 border-b border-dashed border-slate-100 text-emerald-600'>
+                            <span className='font-bold uppercase text-[10px]'>Khuyến mãi {activeBooking.promoName ? `(${activeBooking.promoName})` : ''}</span>
+                            <span className='font-bold'>-{formatCurrency(activeBooking.discountAmount)}</span>
+                          </div>
+                        ) : null}
+                        {/* Chiết khấu Khấu trừ điểm tích lũy */}
+                        {activeBooking.usedPoints && activeBooking.usedPoints > 0 ? (
+                          <div className='flex justify-between items-center py-1.5 border-b border-dashed border-slate-100 text-emerald-600'>
+                            <span className='font-bold uppercase text-[10px]'>Khấu trừ điểm ({activeBooking.usedPoints} pts)</span>
+                            <span className='font-bold'>-{formatCurrency(activeBooking.pointsDiscountAmount || (activeBooking.usedPoints * 100))}</span>
+                          </div>
+                        ) : null}
+                        <div className='flex justify-between items-center py-1.5 border-b border-dashed border-slate-100'>
+                          <span className='text-slate-450 font-bold uppercase text-[10px]'>Thực tế thanh toán</span>
+                          <span className='font-bold text-emerald-600 text-sm'>
+                            {formatCurrency(
+                              activeBooking.totalAmount !== undefined 
+                                ? activeBooking.totalAmount 
+                                : activeBooking.basePrice
+                            )}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
                     {activeBooking.notes && (
                       <div className='space-y-1.5'>
                         <h4 className='text-[10px] uppercase font-bold text-slate-400'>Ghi chú đặt lịch</h4>
-                        <div className='p-3.5 bg-indigo-50/20 rounded-xl border border-indigo-150/40 italic text-xs text-slate-600 font-semibold'>"{activeBooking.notes}"</div>
+                        <div className='p-3.5 bg-indigo-50/20 rounded-xl border border-indigo-150/40 italic text-xs text-slate-650 font-semibold'>"{activeBooking.notes}"</div>
                       </div>
                     )}
                   </div>
@@ -496,13 +594,57 @@ export function AdminBookingsPage() {
                       />
                     </div>
 
+                    {/* Dynamic services/combos checklist block */}
                     <div>
-                      <label className='block text-[10px] font-bold text-slate-455 uppercase tracking-wider mb-1'>Chọn loại dịch vụ</label>
-                      <select value={newService} onChange={(e) => setNewService(e.target.value)} className='w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-lg text-xs font-semibold focus:outline-none focus:bg-white focus:border-indigo-500 transition-colors appearance-none cursor-pointer'>
-                        <option value='BASIC'>Rửa xe tiêu chuẩn (BASIC)</option>
-                        <option value='PREMIUM'>Rửa xe cao cấp (PREMIUM)</option>
-                        <option value='FULL_DETAIL'>Chăm sóc toàn diện (FULL_DETAIL)</option>
-                      </select>
+                      <label className='block text-[10px] font-bold text-slate-455 uppercase tracking-wider mb-2'>Chọn dịch vụ / Combo thực hiện</label>
+                      <div className='max-h-40 overflow-y-auto border border-slate-200 rounded-lg p-2.5 space-y-1.5 bg-slate-50'>
+                        {adminServicesList.length === 0 ? (
+                          <p className='text-[10px] text-slate-400 font-semibold italic text-center py-2'>Đang tải danh sách dịch vụ...</p>
+                        ) : (
+                          adminServicesList.map(s => {
+                            const isChecked = newServiceIds.includes(s.serviceId)
+                            const handleToggle = () => {
+                              if (s.combo) {
+                                // Chọn Combo: Bỏ chọn toàn bộ dịch vụ lẻ khác, chỉ lấy Combo này
+                                setNewServiceIds([s.serviceId])
+                              } else {
+                                // Chọn dịch vụ lẻ: Bỏ chọn combo khác
+                                const withoutCombos = adminServicesList
+                                  .filter(item => newServiceIds.includes(item.serviceId) && !item.combo)
+                                  .map(item => item.serviceId)
+                                
+                                if (isChecked) {
+                                  setNewServiceIds(withoutCombos.filter(id => id !== s.serviceId))
+                                } else {
+                                  setNewServiceIds([...withoutCombos, s.serviceId])
+                                }
+                              }
+                            }
+
+                            return (
+                              <label 
+                                key={s.serviceId} 
+                                className={cn(
+                                  'flex items-center justify-between p-2 rounded-md border cursor-pointer select-none transition-colors text-[11px] font-semibold',
+                                  isChecked ? 'bg-indigo-50 border-indigo-200 text-indigo-800 shadow-sm' : 'bg-white border-slate-200 text-slate-650 hover:bg-slate-50'
+                                )}
+                              >
+                                <span className='flex items-center gap-1.5'>
+                                  <input 
+                                    type='checkbox' 
+                                    checked={isChecked}
+                                    onChange={handleToggle}
+                                    className='w-3.5 h-3.5 text-indigo-650 rounded border-slate-200'
+                                  />
+                                  {s.name}
+                                  {s.combo && <span className='text-[8px] bg-purple-50 text-purple-700 px-1 py-0.5 rounded border border-purple-100 font-bold uppercase shrink-0'>Combo</span>}
+                                </span>
+                                <span className='font-bold text-slate-700'>{formatCurrency(s.basePrice)}</span>
+                              </label>
+                            )
+                          })
+                        )}
+                      </div>
                     </div>
 
                     <div className='flex gap-2 pt-3'>

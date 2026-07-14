@@ -6,9 +6,14 @@ export interface PointBalanceResponse {
   currentPoints?: number
   pointsExpiring?: number
   expiringAt?: string
-  tier?: string
-  nextTierPoints?: number
-  nextTier?: string
+  tier?: string // e.g. "Silver", "Gold", "Platinum"
+  nextTierPoints?: number // points needed to advance to next tier
+  nextTier?: string // e.g. "Gold", "Platinum"
+  totalVisits?: number
+  remainingVisits?: number
+  silverThreshold?: number
+  goldThreshold?: number
+  platinumThreshold?: number
 }
 
 export interface PointHistoryResponse {
@@ -16,6 +21,7 @@ export interface PointHistoryResponse {
   customerId: string
   points: number
   transactionType: 'EARN' | 'REDEEM'
+  type: 'EARN' | 'REDEEM'
   amountPaid?: number
   description?: string
   createdAt: string
@@ -23,23 +29,19 @@ export interface PointHistoryResponse {
 
 export interface Page<T> {
   content: T[]
-  totalPages: number
-  totalElements: number
-  size: number
-  number: number
 }
 
 export interface RedeemPointsRequest {
   customerId: string
-  redeemType: string
+  points: number
   referenceId: string
 }
 
 export interface RedeemPointsResponse {
   customerId: string
-  pointsRedeemed: number
-  newBalance: number
-  rewardDetails?: string
+  pointsUsed: number
+  remainingBalance: number
+  message?: string
 }
 
 export const loyaltyService = {

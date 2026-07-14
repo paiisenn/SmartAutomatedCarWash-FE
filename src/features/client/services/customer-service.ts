@@ -26,4 +26,9 @@ export const customerService = {
     const { data } = await authorizeAxios.put<CustomerResponse>(`/customers/${id}`, payload)
     return data
   },
+
+  async changePassword(id: string | number, payload: { oldPassword?: string; newPassword?: string }): Promise<any> {
+    const { data } = await authorizeAxios.patch(`/customers/${id}/password`, payload)
+    return data
+  },
 }

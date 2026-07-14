@@ -7,10 +7,9 @@ import { PromotionStats } from '@/features/admin/components/promotion-stats'
 import { PromotionTable } from '@/features/admin/components/promotion-table'
 import { Button } from '@/shared/components/ui/button'
 import { cn } from '@/shared/lib/utils'
+import { authorizeAxios } from '@/shared/lib/api-client'
 
 const filterTabs = ['Tất cả', 'Đang chạy', 'Hết hạn']
-
-import { adminPromotionService } from '@/features/admin/services/admin-promotion-service'
 
 export function AdminPromotionsPage() {
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -32,18 +31,57 @@ export function AdminPromotionsPage() {
   const fetchPromotions = async () => {
     setLoading(true)
     try {
+      const params: any = {}
       const statusMap = ['ALL', 'ACTIVE', 'EXPIRED']
       const paramStatus = statusMap[activeTab]
       
-      const data = await adminPromotionService.getAdminPromotions(paramStatus, searchQuery)
+      if (paramStatus && paramStatus !== 'ALL') {
+        params.status = paramStatus
+      }
+
+      // 🌟 THÊM: Nếu có từ khóa gõ trên Topbar, truyền trực tiếp params search xuống database
+      if (searchQuery.trim() !== '') {
+        params.search = searchQuery.trim()
+      }
+
+      const res = await authorizeAxios.get('/admin/promotions', { params })
+      const data = res.data
       
       const mappedData = data.map((item: any) => {
+        let finalTiers: string[] = []
+        if (Array.isArray(item.targetTiers)) {
+          finalTiers = item.targetTiers
+        } else if (typeof item.targetTiers === 'string' && item.targetTiers.trim() !== '') {
+          finalTiers = item.targetTiers.includes(',')
+            ? item.targetTiers.split(',').map((t: string) => t.trim())
+            : [item.targetTiers.trim()]
+        } else {
+          finalTiers = ['ALL']
+        }
+
+        const currentCount = item.usageCount !== undefined ? item.usageCount : 0
+        const limitCount = item.usageLimit !== undefined ? item.usageLimit : 100
+        
+        const isPromoActive = 
+          item.active === true || 
+          String(item.active) === 'true' || 
+          item.isActive === true || 
+          String(item.isActive) === 'true'
+
         return {
           ...item,
+          id: item.promoId || item.promoid || item.id || `PROMO-${item.name}`,
+          targetTiers: finalTiers,
+          isActive: isPromoActive,
+          status: isPromoActive ? 'ACTIVE' : 'EXPIRED',
+          type: item.promoType || item.type || 'DISCOUNT',
           usage: {
-            current: item.usageCount,
-            limit: item.usageLimit
-          }
+            current: currentCount,
+            limit: limitCount
+          },
+          usageLimit: limitCount,
+          usageCount: currentCount,
+          createdAt: item.createdAt || new Date().toISOString()
         }
       })
 
@@ -82,10 +120,11 @@ export function AdminPromotionsPage() {
     )
 
     try {
-      await adminPromotionService.togglePromotion(id)
-    } catch (error) {
+      await authorizeAxios.patch(`/admin/promotions/${id}/toggle`)
+    } catch (error: any) {
       console.error('Lỗi kết nối gạt switch trạng thái:', error)
-      alert('Không thể kết nối đến máy chủ Backend. Đang khôi phục giao diện...')
+      const errMsg = error?.response?.data?.message || error?.message || 'Không thể kết nối đến máy chủ Backend.'
+      alert(`${errMsg} Đang khôi phục giao diện...`)
       fetchPromotions()
     }
   }

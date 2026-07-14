@@ -2,6 +2,8 @@ import { adminNavItems, type AdminNavKey } from '@/features/admin/data/admin-das
 import { Link } from '@/app/router'
 import { routes, type AppPath } from '@/app/routes'
 import { cn } from '@/shared/lib/utils'
+import { LogOut } from 'lucide-react'
+import { authStore } from '@/features/auth/store/auth-store'
 
 type AdminSidebarProps = {
   activeItem?: AdminNavKey
@@ -14,7 +16,8 @@ const navRouteMap: Partial<Record<AdminNavKey, AppPath>> = {
   promotion: routes.adminPromotions,
   articles: routes.adminArticles,
   configuration: routes.adminConfiguration,
-  reports: routes.adminReports
+  reports: routes.adminReports,
+  services: routes.adminServices
 }
 
 export function AdminSidebar({ activeItem = 'dashboard' }: AdminSidebarProps) {
@@ -55,18 +58,27 @@ export function AdminSidebar({ activeItem = 'dashboard' }: AdminSidebarProps) {
         })}
       </nav>
 
-      <div className='mt-auto flex items-center gap-4 border-t border-border px-3 pt-4'>
-        <span className='grid size-8 place-items-center rounded-full bg-[linear-gradient(145deg,#1b2838,#6c859b)] text-xs text-white'>
-          AU
-        </span>
-        <div className='min-w-0'>
-          <p className='truncate text-sm font-medium leading-4 text-on-surface'>
-            Admin User
-          </p>
-          <p className='text-[10px] leading-4 text-on-surface-variant'>
-            System Root
-          </p>
+      <div className='mt-auto flex items-center justify-between border-t border-border px-3 pt-4'>
+        <div className='flex items-center gap-3 min-w-0'>
+          <span className='grid size-8 shrink-0 place-items-center rounded-full bg-[linear-gradient(145deg,#1b2838,#6c859b)] text-xs text-white'>
+            AU
+          </span>
+          <div className='min-w-0'>
+            <p className='truncate text-sm font-medium leading-4 text-on-surface'>
+              Admin User
+            </p>
+            <p className='text-[10px] leading-4 text-on-surface-variant'>
+              System Root
+            </p>
+          </div>
         </div>
+        <button
+          onClick={() => authStore.logout()}
+          className='rounded-md p-1.5 text-outline hover:bg-surface-container hover:text-red-500 transition-colors cursor-pointer'
+          title='Đăng xuất'
+        >
+          <LogOut size={18} />
+        </button>
       </div>
     </aside>
   )
